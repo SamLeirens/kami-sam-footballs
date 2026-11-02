@@ -41,7 +41,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
         <Stat label="Rating" value={p.overall.toFixed(1)} sub={`Strength ${p.strength.toFixed(1)} · Elo ${s.elo}`} />
         <Stat label="Win %" value={s.played ? `${s.winPct}%` : "–"} sub={`${s.wins}W ${s.draws}D ${s.losses}L`} />
         <Stat label="Played" value={s.played} sub={<Form form={s.form} />} />
-        <Stat label="Goals / Assists" value={`${s.goals} / ${s.assists}`} sub={s.played ? `${(s.goals / s.played).toFixed(2)} goals per game` : undefined} />
+        <Stat label="Goals / Assists" value={`${s.goals} / ${s.assists}`} sub={s.motm ? `⭐ ${s.motm}× man of the match` : s.played ? `${(s.goals / s.played).toFixed(2)} goals per game` : undefined} />
       </div>
 
       <section className="card">
@@ -64,6 +64,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                     <Link href={`/matches/${m.id}`} className="flex-1 hover:underline">{formatDate(m.date)}</Link>
                     <span className="text-neutral-500">Team {e.team}</span>
                     <span className="w-12 text-right font-mono">{isPlayed(m) ? `${m.scoreA}–${m.scoreB}` : "—"}</span>
+                    {m.motmPlayerId === id && <span title="Man of the match">⭐</span>}
                     {(e.goals ?? 0) > 0 && <span title="goals">⚽{e.goals}</span>}
                     {(e.assists ?? 0) > 0 && <span title="assists">🅰️{e.assists}</span>}
                   </li>

@@ -4,7 +4,7 @@ import { overall, strength } from "../rating";
 
 describe("computeStats", () => {
   const matches = [
-    { id: 1, date: "2026-01-01", scoreA: 3, scoreB: 1 },
+    { id: 1, date: "2026-01-01", scoreA: 3, scoreB: 1, motmPlayerId: 1 },
     { id: 2, date: "2026-01-08", scoreA: 2, scoreB: 2 },
     { id: 3, date: "2026-01-15", scoreA: null, scoreB: null }, // planned, ignored
   ];
@@ -25,6 +25,11 @@ describe("computeStats", () => {
   it("sums optional goals/assists, treating unknown as 0", () => {
     expect(stats.get(1)).toMatchObject({ goals: 3, assists: 1 });
     expect(stats.get(2)).toMatchObject({ goals: 0, assists: 1 });
+  });
+
+  it("counts man of the match awards", () => {
+    expect(stats.get(1)!.motm).toBe(1);
+    expect(stats.get(2)!.motm).toBe(0);
   });
 
   it("form is most recent first", () => {

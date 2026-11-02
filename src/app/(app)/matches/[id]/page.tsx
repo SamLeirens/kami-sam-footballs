@@ -55,6 +55,19 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
               <label className="label" htmlFor="date">Date</label>
               <input id="date" name="date" type="date" defaultValue={match.date} className="input" />
             </div>
+            <div>
+              <label className="label" htmlFor="motm">⭐ Man of the match</label>
+              <select key={match.motmPlayerId ?? "none"} id="motm" name="motm" defaultValue={match.motmPlayerId ?? ""} className="input">
+                <option value="">—</option>
+                {(["A", "B"] as const).map((t) => (
+                  <optgroup key={t} label={`Team ${t}`}>
+                    {teams[t].map((e) => (
+                      <option key={e.playerId} value={e.playerId}>{e.player.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
             <div className="min-w-48 flex-1">
               <label className="label" htmlFor="notes">Notes</label>
               <input id="notes" name="notes" defaultValue={match.notes ?? ""} className="input" placeholder="optional" />
@@ -77,7 +90,7 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
               </div>
               <ul className="space-y-1">
                 {teams[t].map((e) => (
-                  <LineupRow key={e.playerId} matchId={id} player={e.player} team={t} goals={e.goals} assists={e.assists} />
+                  <LineupRow key={e.playerId} matchId={id} player={e.player} team={t} goals={e.goals} assists={e.assists} motm={match.motmPlayerId === e.playerId} />
                 ))}
               </ul>
             </section>
@@ -120,17 +133,22 @@ function LineupRow({
   team,
   goals,
   assists,
+  motm,
 }: {
   matchId: number;
   player: PlayerRow;
   team: "A" | "B";
   goals: number | null;
   assists: number | null;
+  motm: boolean;
 }) {
   return (
     <li className="grid grid-cols-[auto_1fr_3rem_3rem_auto] items-center gap-2 text-sm">
       <PosBadge position={player.position} />
-      <Link href={`/players/${player.id}`} className="truncate hover:underline">{player.name}</Link>
+      <Link href={`/players/${player.id}`} className="truncate hover:underline">
+        {player.name}
+        {motm && <span className="ml-1" title="Man of the match">⭐</span>}
+      </Link>
       <input name={`goals_${player.id}`} type="number" min={0} inputMode="numeric" defaultValue={goals ?? ""} className="input px-1 py-1 text-center" aria-label={`${player.name} goals`} />
       <input name={`assists_${player.id}`} type="number" min={0} inputMode="numeric" defaultValue={assists ?? ""} className="input px-1 py-1 text-center" aria-label={`${player.name} assists`} />
       <span className="flex w-16 justify-end">

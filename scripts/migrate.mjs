@@ -10,7 +10,7 @@ if (!url) {
   console.log("[migrate] DATABASE_URL not set, skipping migrations");
   process.exit(0);
 }
-const sql = postgres(url, { max: 1, prepare: false });
+const sql = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
 await migrate(drizzle(sql), { migrationsFolder: "./drizzle" });
 await sql`INSERT INTO settings (id) VALUES (1) ON CONFLICT DO NOTHING`;
 await sql.end();

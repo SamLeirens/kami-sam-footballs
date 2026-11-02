@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, matches, matchPlayers } from "@/db";
@@ -42,17 +42,21 @@ export async function saveResult(matchId: number, formData: FormData) {
   // Only count as played when both scores are filled in.
   const played = scoreA !== null && scoreB !== null;
 
+  const motm = Number(formData.get("motm")) || null;
+
   await db.transaction(async (tx) => {
+    const rows = await tx.select().from(matchPlayers).where(eq(matchPlayers.matchId, matchId));
     await tx
       .update(matches)
       .set({
         scoreA: played ? scoreA : null,
         scoreB: played ? scoreB : null,
         notes,
+        // must be someone who played in this match
+        motmPlayerId: motm && rows.some((r) => r.playerId === motm) ? motm : null,
         ...(DATE_RE.test(date) ? { date } : {}),
       })
       .where(eq(matches.id, matchId));
-    const rows = await tx.select().from(matchPlayers).where(eq(matchPlayers.matchId, matchId));
     for (const r of rows) {
       await tx
         .update(matchPlayers)
@@ -73,7 +77,13 @@ export async function switchTeam(matchId: number, playerId: number) {
 
 export async function removeFromMatch(matchId: number, playerId: number) {
   await requireAdmin();
-  await db.delete(matchPlayers).where(and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.playerId, playerId)));
+  await db.transaction(async (tx) => {
+    await tx.delete(matchPlayers).where(and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.playerId, playerId)));
+    await tx
+      .update(matches)
+      .set({ motmPlayerId: sql`NULLIF(${matches.motmPlayerId}, ${playerId})` })
+      .where(eq(matches.id, matchId));
+  });
   refresh();
 }
 

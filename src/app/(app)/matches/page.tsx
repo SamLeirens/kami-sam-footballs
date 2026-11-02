@@ -4,7 +4,8 @@ import { loadClub } from "@/lib/data";
 import { isPlayed } from "@/lib/stats";
 
 export default async function MatchesPage() {
-  const { matches, entries } = await loadClub();
+  const { matches, entries, players } = await loadClub();
+  const names = new Map(players.map((p) => [p.id, p.name]));
   const counts = new Map<number, number>();
   for (const e of entries) counts.set(e.matchId, (counts.get(e.matchId) ?? 0) + 1);
 
@@ -22,6 +23,9 @@ export default async function MatchesPage() {
             <li key={m.id}>
               <Link href={`/matches/${m.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02]">
                 <span className="flex-1 font-medium">{formatDate(m.date)}</span>
+                {m.motmPlayerId && names.has(m.motmPlayerId) && (
+                  <span className="hidden text-sm text-neutral-600 sm:inline">⭐ {names.get(m.motmPlayerId)}</span>
+                )}
                 <span className="text-sm text-neutral-500">{counts.get(m.id) ?? 0} players</span>
                 {isPlayed(m) ? (
                   <span className="w-16 text-right font-mono font-bold">{m.scoreA} – {m.scoreB}</span>

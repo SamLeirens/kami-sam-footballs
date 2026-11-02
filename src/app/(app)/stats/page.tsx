@@ -10,6 +10,7 @@ const COLUMNS = [
   { key: "winPct", label: "Win %", get: (p: PlayerRow) => p.stats.winPct },
   { key: "goals", label: "Goals", get: (p: PlayerRow) => p.stats.goals },
   { key: "assists", label: "Ast", get: (p: PlayerRow) => p.stats.assists },
+  { key: "motm", label: "⭐", get: (p: PlayerRow) => p.stats.motm },
   { key: "elo", label: "Elo", get: (p: PlayerRow) => p.stats.elo },
   { key: "strength", label: "Str", get: (p: PlayerRow) => p.strength },
 ] as const;
@@ -85,7 +86,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
       )}
       <p className="text-xs text-neutral-500">
         Win % = wins ÷ games played (draws count as not-won). Elo starts at 1000 and moves with every result, weighted by how strong
-        each team was. Goals/assists only count matches where you entered them.
+        each team was. Goals/assists only count matches where you entered them. ⭐ = man of the match awards.
       </p>
     </div>
   );

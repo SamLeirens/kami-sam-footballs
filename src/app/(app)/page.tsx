@@ -16,6 +16,8 @@ export default async function Dashboard() {
 
   const qualified = players.filter((p) => p.stats.played >= MIN_GAMES);
   const topWin = [...qualified].sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played).slice(0, 5);
+  const topMotm = players.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm || a.stats.played - b.stats.played).slice(0, 5);
+  const motmName = (id: number | null) => players.find((p) => p.id === id)?.name;
   const topScorers = players.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals).slice(0, 5);
 
   if (players.length === 0) {
@@ -56,12 +58,15 @@ export default async function Dashboard() {
             <div className="text-lg font-semibold">
               Team A <span className="font-mono">{last.scoreA} – {last.scoreB}</span> Team B
             </div>
-            <div className="text-sm text-neutral-500">{formatDate(last.date)}</div>
+            <div className="text-sm text-neutral-500">
+              {formatDate(last.date)}
+              {motmName(last.motmPlayerId) && <> · ⭐ {motmName(last.motmPlayerId)}</>}
+            </div>
           </Link>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Leaderboard
           title="Best win %"
           empty={`Players need ${MIN_GAMES}+ games to appear here.`}
@@ -74,6 +79,13 @@ export default async function Dashboard() {
           empty="No goals recorded yet."
           rows={topScorers}
           value={(p) => p.stats.goals}
+          extra={(p) => <span className="text-xs text-neutral-500">{p.stats.played} games</span>}
+        />
+        <Leaderboard
+          title="⭐ Man of the match"
+          empty="No awards yet."
+          rows={topMotm}
+          value={(p) => `${p.stats.motm}×`}
           extra={(p) => <span className="text-xs text-neutral-500">{p.stats.played} games</span>}
         />
       </div>

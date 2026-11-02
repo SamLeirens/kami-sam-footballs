@@ -44,6 +44,8 @@ export const matches = pgTable("matches", {
   scoreA: integer("score_a"),
   scoreB: integer("score_b"),
   notes: text("notes"),
+  // man of the match (optional)
+  motmPlayerId: integer("motm_player_id").references(() => players.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

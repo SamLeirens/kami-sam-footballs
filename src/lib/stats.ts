@@ -7,6 +7,7 @@ export type StatsMatch = {
   date: string;
   scoreA: number | null;
   scoreB: number | null;
+  motmPlayerId?: number | null;
 };
 export type StatsEntry = {
   matchId: number;
@@ -25,6 +26,8 @@ export type PlayerStats = {
   winPct: number;
   goals: number;
   assists: number;
+  /** man of the match awards */
+  motm: number;
   /** most recent first, max 5 */
   form: Result[];
   elo: number;
@@ -33,7 +36,7 @@ export type PlayerStats = {
 const K = 24;
 
 export function emptyStats(): PlayerStats {
-  return { played: 0, wins: 0, draws: 0, losses: 0, winPct: 0, goals: 0, assists: 0, form: [], elo: ELO_START };
+  return { played: 0, wins: 0, draws: 0, losses: 0, winPct: 0, goals: 0, assists: 0, motm: 0, form: [], elo: ELO_START };
 }
 
 export function isPlayed<M extends { scoreA: number | null; scoreB: number | null }>(
@@ -92,6 +95,7 @@ export function computeStats(matches: StatsMatch[], entries: StatsEntry[]): Map<
       s.form.unshift(r);
       if (s.form.length > 5) s.form.pop();
       s.elo += e.team === "A" ? delta : -delta;
+      if (m.motmPlayerId === e.playerId) s.motm++;
     }
   }
 
