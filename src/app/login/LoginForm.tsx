@@ -11,7 +11,7 @@ export function LoginForm() {
         <label className="label" htmlFor="password">Password</label>
         <input id="password" name="password" type="password" required autoFocus className="input" />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <button className="btn w-full" disabled={pending}>
         {pending ? "Logging in…" : "Log in"}
       </button>

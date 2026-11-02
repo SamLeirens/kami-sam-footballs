@@ -11,7 +11,7 @@ const COLUMNS = [
   { key: "winPct", label: "Win %", get: (p: PlayerRow) => p.stats.winPct },
   { key: "goals", label: "Goals", get: (p: PlayerRow) => p.stats.goals },
   { key: "assists", label: "Ast", get: (p: PlayerRow) => p.stats.assists },
-  { key: "motm", label: "⭐", get: (p: PlayerRow) => p.stats.motm },
+  { key: "motm", label: "MOTM", get: (p: PlayerRow) => p.stats.motm },
   { key: "elo", label: "Elo", get: (p: PlayerRow) => p.stats.elo },
   { key: "strength", label: "Str", get: (p: PlayerRow) => p.strength },
 ] as const;
@@ -38,9 +38,9 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="h1">Stats</h1>
         <div className="flex items-center gap-1 text-sm">
-          <span className="text-neutral-500">Min games:</span>
+          <span className="text-muted">Min games:</span>
           {[1, 3, 5, 10].map((m) => (
-            <Link key={m} href={href(sort, m)} className={`rounded px-2 py-1 ${m === min ? "bg-pitch-700 text-white" : "hover:bg-black/5"}`}>
+            <Link key={m} href={href(sort, m)} className={`rounded px-2 py-1 ${m === min ? "bg-accent text-ground" : "hover:bg-surface-2"}`}>
               {m}+
             </Link>
           ))}
@@ -48,17 +48,17 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
       </div>
 
       {rows.length === 0 ? (
-        <p className="card text-sm text-neutral-600">No stats yet — enter some match results.</p>
+        <p className="card text-sm text-muted">No stats yet — enter some match results.</p>
       ) : (
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="border-b border-black/5 text-xs uppercase tracking-wide text-neutral-500">
+            <thead className="border-b border-line-soft text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-3 py-2 text-left">#</th>
                 <th className="px-2 py-2 text-left">Player</th>
                 {COLUMNS.map((c) => (
                   <th key={c.key} className="px-2 py-2 text-right">
-                    <Link href={href(c.key)} className={c.key === sort ? "text-pitch-700 underline" : "hover:text-neutral-800"}>
+                    <Link href={href(c.key)} className={c.key === sort ? "text-accent underline" : "hover:text-fg"}>
                       {c.label}
                     </Link>
                   </th>
@@ -68,8 +68,8 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
             </thead>
             <tbody>
               {rows.map((p, i) => (
-                <tr key={p.id} className="border-b border-black/5 last:border-0">
-                  <td className="px-3 py-2 text-neutral-400">{i + 1}</td>
+                <tr key={p.id} className="border-b border-line-soft last:border-0">
+                  <td className="px-3 py-2 text-muted">{i + 1}</td>
                   <td className="whitespace-nowrap px-2 py-2">
                     <span className="inline-flex items-center gap-2">
                       <PosBadge position={p.position} />
@@ -90,14 +90,14 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
       )}
       {duos.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
-          <DuoList title="🤝 Best duos" duos={duos.slice(0, 8)} names={names} min={duoMin} />
-          <DuoList title="💀 Worst duos" duos={duos.slice(-8).reverse().filter((d) => !duos.slice(0, 8).includes(d))} names={names} min={duoMin} />
+          <DuoList title="Best duos" duos={duos.slice(0, 8)} names={names} min={duoMin} />
+          <DuoList title="Worst duos" duos={duos.slice(-8).reverse().filter((d) => !duos.slice(0, 8).includes(d))} names={names} min={duoMin} />
         </div>
       )}
 
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-muted">
         Win % = wins ÷ games played (draws count as not-won). Elo starts at 1000 and moves with every result, weighted by how strong
-        each team was. Goals/assists only count matches where you entered them. ⭐ = man of the match awards.
+        each team was. Goals/assists only count matches where you entered them. MOTM = man of the match awards.
       </p>
     </div>
   );
@@ -119,9 +119,9 @@ function DuoList({
     <section className="card">
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="h2">{title}</h2>
-        <span className="text-xs text-neutral-500">{min}+ games together</span>
+        <span className="text-xs text-muted">{min}+ games together</span>
       </div>
-      <ol className="divide-y divide-black/5 text-sm">
+      <ol className="divide-y divide-line-soft text-sm">
         {duos.map((d) => (
           <li key={`${d.a}-${d.b}`} className="flex items-center gap-2 py-1.5">
             <span className="flex-1">
@@ -129,7 +129,7 @@ function DuoList({
               {" & "}
               <Link href={`/players/${d.b}`} className="hover:underline">{names.get(d.b)}</Link>
             </span>
-            <span className="text-xs tabular-nums text-neutral-500">
+            <span className="text-xs tabular-nums text-muted">
               {d.rec.wins}-{d.rec.draws}-{d.rec.losses}
             </span>
             <span className="w-14 text-right font-bold tabular-nums">{d.winPct}%</span>

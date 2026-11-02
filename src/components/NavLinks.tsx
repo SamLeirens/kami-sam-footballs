@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icon, type IconName } from "./icons";
 
-const LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/matches/new", label: "Pick teams" },
-  { href: "/matches", label: "Matches" },
-  { href: "/players", label: "Players" },
-  { href: "/stats", label: "Stats" },
-  { href: "/settings", label: "Settings" },
+const LINKS: { href: string; label: string; icon: IconName }[] = [
+  { href: "/", label: "Home", icon: "home" },
+  { href: "/matches/new", label: "Teams", icon: "teams" },
+  { href: "/matches", label: "Matches", icon: "calendar" },
+  { href: "/players", label: "Players", icon: "player" },
+  { href: "/stats", label: "Stats", icon: "stats" },
 ];
 
 function isActive(href: string, path: string | null) {
@@ -19,21 +19,39 @@ function isActive(href: string, path: string | null) {
   return path === href || path.startsWith(href + "/");
 }
 
-export function ActiveNavLinks() {
-  return <NavLinks path={usePathname()} />;
+type Variant = "top" | "bottom";
+
+export function ActiveNavLinks({ variant }: { variant: Variant }) {
+  return <NavLinks path={usePathname()} variant={variant} />;
 }
 
-export function NavLinks({ path }: { path: string | null }) {
+export function NavLinks({ path, variant }: { path: string | null; variant: Variant }) {
+  if (variant === "top") {
+    return (
+      <nav aria-label="Main" className="flex gap-1 text-sm font-semibold">
+        {LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={`rounded-full px-3.5 py-2 ${isActive(l.href, path) ? "bg-surface text-accent" : "text-muted hover:text-fg"}`}
+          >
+            {l.href === "/matches/new" ? "Pick teams" : l.label}
+          </Link>
+        ))}
+      </nav>
+    );
+  }
   return (
-    <nav className="-mx-1 flex gap-1 overflow-x-auto text-sm">
+    <nav aria-label="Main" className="grid grid-cols-5 px-2 pt-2 pb-2">
       {LINKS.map((l) => (
         <Link
           key={l.href}
           href={l.href}
-          className={`whitespace-nowrap rounded-md px-2.5 py-1.5 ${
-            isActive(l.href, path) ? "bg-white/20 font-semibold" : "text-white/80 hover:bg-white/10"
+          className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-semibold ${
+            isActive(l.href, path) ? "bg-surface text-accent" : "text-muted"
           }`}
         >
+          <Icon name={l.icon} />
           {l.label}
         </Link>
       ))}

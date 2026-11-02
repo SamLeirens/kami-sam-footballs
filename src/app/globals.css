@@ -1,44 +1,69 @@
 @import "tailwindcss";
 
+/* Design A — "Matchday": dark scoreboard look, lime = primary action; blue / orange = our two shirts */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-pitch-50: #f0fdf4;
-  --color-pitch-100: #dcfce7;
-  --color-pitch-600: #16a34a;
-  --color-pitch-700: #15803d;
-  --color-pitch-800: #166534;
-  --color-pitch-900: #14532d;
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-barlow);
+  --font-mono: var(--font-inter);
+
+  --color-ground: #0d100f;
+  --color-surface: #171b19;
+  --color-surface-2: #1f2522;
+  --color-line: #2a312d;
+  --color-line-soft: #222826;
+  --color-fg: #f2f5f3;
+  --color-soft: #c9d1cc;
+  --color-muted: #9aa59f;
+  --color-subtle: #6f7a74;
+  --color-accent: #c8f031;
+  --color-accent-hover: #d9ff5a;
+  --color-accent-dim: #2e3315;
+  /* our shirts: A = blue, B = orange */
+  --color-team-a: #4da3ff;
+  --color-team-a-dim: #142a40;
+  --color-team-b: #ff8a3d;
+  --color-team-b-dim: #3a2312;
+  --color-danger: #ff6b5b;
+  --color-danger-dim: #3a1a17;
+  --color-warn: #f5b841;
+  --color-warn-dim: #3a2e12;
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: #f6f7f5;
-  color: #1c1f1d;
+  background: var(--color-ground);
+  color: var(--color-fg);
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border border-black/5 bg-white p-4 shadow-sm;
+    @apply rounded-2xl border border-line bg-surface p-4;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-1 rounded-lg bg-pitch-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pitch-800 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-accent px-4 text-sm font-semibold text-ground transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-fg transition hover:bg-surface-2 disabled:opacity-40;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-danger/40 px-4 text-sm font-semibold text-danger transition hover:bg-danger-dim;
   }
   .input {
-    @apply w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm outline-none focus:border-pitch-600 focus:ring-2 focus:ring-pitch-600/20;
+    @apply w-full min-h-11 rounded-xl border border-line bg-surface-2 px-3 text-sm text-fg outline-none placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20;
   }
   .label {
-    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500;
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-muted;
   }
   .h1 {
-    @apply text-2xl font-bold tracking-tight;
+    @apply font-display text-3xl leading-none font-extrabold tracking-wide uppercase;
   }
   .h2 {
-    @apply text-lg font-semibold;
+    @apply font-display text-xl leading-tight font-bold tracking-wide uppercase;
+  }
+  .num {
+    @apply font-display font-bold tabular-nums;
   }
 }

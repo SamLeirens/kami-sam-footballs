@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { TEAMS } from "@/lib/teams";
 import { castVote, type VoteState } from "./actions";
 
 type P = { id: number; name: string; team: "A" | "B"; voted: boolean };
@@ -28,7 +29,7 @@ export function VoteForm({ token, players }: { token: string; players: P[] }) {
         <select id="candidate" name="candidate" className="input" value={candidate} onChange={(e) => setCandidate(e.target.value)} disabled={!voter}>
           <option value="">{voter ? "Select a player…" : "Pick your name first"}</option>
           {(["A", "B"] as const).map((t) => (
-            <optgroup key={t} label={`Team ${t}`}>
+            <optgroup key={t} label={TEAMS[t].name}>
               {players
                 .filter((p) => p.team === t && String(p.id) !== voter)
                 .map((p) => (
@@ -38,11 +39,11 @@ export function VoteForm({ token, players }: { token: string; players: P[] }) {
           ))}
         </select>
       </div>
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-danger">{state.error}</p>}
       <button className="btn w-full" disabled={pending || !voter || !candidate}>
-        {pending ? "Voting…" : "⭐ Cast vote"}
+        {pending ? "Voting…" : "Cast vote"}
       </button>
-      <p className="text-center text-xs text-neutral-500">One vote per player. Everyone can see who has voted.</p>
+      <p className="text-center text-xs text-muted">One vote per player. Everyone can see who has voted.</p>
     </form>
   );
 }

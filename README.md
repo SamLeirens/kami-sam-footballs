@@ -1,9 +1,10 @@
-# ⚽ Kami Football
+# ⚽ Kami FC
 
 Web app for running our weekly football: rate players, generate fair teams, record results, track win % and other stats.
 
 ## Features
 
+- **Teams are Blue and Orange**, the colours of our two shirts (stored as A/B in the database; names live in `src/lib/teams.ts`).
 - **Players**: rate each player 1–10 on attack, defence, passing, fitness and goalkeeping, plus a main position (GK/DEF/MID/ATT). Rating history is kept.
 - **Fair teams**: tick who's playing and get the 3 fairest splits into two teams (5v5, 5v6, …).
   - Tries every possible split (up to ~24 players), so the result is the best possible, not a guess.
@@ -11,7 +12,7 @@ Web app for running our weekly football: rate players, generate fair teams, reco
   - Keepers go one per team, and defenders/attackers are spread out.
   - Avoids repeating last week's exact teams when an equally fair split exists.
   - Swap players by hand and the balance bar updates live.
-  - Copy the teams to WhatsApp.
+  - **Copy teams** copies a Dutch message ("Ploegen voor …", 🔵 Blauw / 🟠 Oranje) to paste in the group chat.
 - **Results**: score, optional goals and assists per player, man of the match, late arrivals, players switching sides.
 - **After-match page to share** (`/m/<link>`, no login needed): score, scorers, line-ups and club leaders, plus a **man of the match vote**.
   - Each player picks their own name and votes; a name can only vote once, and you can't vote for yourself.

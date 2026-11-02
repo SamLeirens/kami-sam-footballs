@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { CopyTeamsButton } from "@/components/CopyTeamsButton";
+import { TEAMS } from "@/lib/teams";
+import { Star } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { ShareLink } from "@/components/ShareLink";
@@ -37,19 +40,16 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
   const names = new Map(club.players.map((p) => [p.id, p.name]));
   const votes = club.votes.filter((v) => v.matchId === id);
   const voteTally = tally(votes);
-  const shareMessage = played
-    ? `⚽ Team A ${match.scoreA}–${match.scoreB} Team B. Vote for your man of the match:`
-    : `⚽ Teams for ${formatDate(match.date)}:`;
 
   return (
     <div className="space-y-6">
-      <Link href="/matches" className="text-sm text-neutral-500 hover:underline">← Matches</Link>
+      <Link href="/matches" className="text-sm text-muted hover:underline">← Matches</Link>
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="h1">{formatDate(match.date)}</h1>
         {played ? (
-          <span className="rounded bg-pitch-100 px-2 py-0.5 text-xs font-semibold text-pitch-800">Played</span>
+          <span className="rounded-full bg-accent-dim px-2.5 py-1 text-xs font-semibold text-accent">Played</span>
         ) : (
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Planned</span>
+          <span className="rounded-full bg-warn-dim px-2.5 py-1 text-xs font-semibold text-warn">Planned</span>
         )}
       </div>
 
@@ -59,12 +59,12 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex items-center gap-2">
               <div>
-                <label className="label text-pitch-700" htmlFor="scoreA">Team A</label>
+                <label className="label text-team-a" htmlFor="scoreA">{TEAMS.A.name}</label>
                 <input id="scoreA" name="scoreA" type="number" min={0} inputMode="numeric" defaultValue={match.scoreA ?? ""} className="input w-20 text-center text-xl font-bold" />
               </div>
-              <span className="mt-5 text-xl font-bold text-neutral-400">–</span>
+              <span className="mt-5 text-xl font-bold text-muted">–</span>
               <div>
-                <label className="label text-sky-700" htmlFor="scoreB">Team B</label>
+                <label className="label text-team-b" htmlFor="scoreB">{TEAMS.B.name}</label>
                 <input id="scoreB" name="scoreB" type="number" min={0} inputMode="numeric" defaultValue={match.scoreB ?? ""} className="input w-20 text-center text-xl font-bold" />
               </div>
             </div>
@@ -73,13 +73,13 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
               <input id="date" name="date" type="date" defaultValue={match.date} className="input" />
             </div>
             <div>
-              <label className="label" htmlFor="motm">⭐ Man of the match</label>
+              <label className="label" htmlFor="motm">Man of the match</label>
               <select key={match.motmPlayerId ?? "none"} id="motm" name="motm" defaultValue={match.motmPlayerId ?? ""} className="input">
                 <option value="">
                   {voteTally.leader ? `Players' vote (${names.get(voteTally.leader)})` : "Players' vote"}
                 </option>
                 {(["A", "B"] as const).map((t) => (
-                  <optgroup key={t} label={`Team ${t}`}>
+                  <optgroup key={t} label={TEAMS[t].name}>
                     {teams[t].map((e) => (
                       <option key={e.playerId} value={e.playerId}>{e.player.name}</option>
                     ))}
@@ -92,19 +92,19 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
               <input id="notes" name="notes" defaultValue={match.notes ?? ""} className="input" placeholder="optional" />
             </div>
           </div>
-          <p className="mt-2 text-xs text-neutral-500">
+          <p className="mt-2 text-xs text-muted">
             Goals and assists below are optional — leave blank if you don&apos;t know.
           </p>
         </section>
 
         <div className="grid gap-4 md:grid-cols-2">
           {(["A", "B"] as const).map((t) => (
-            <section key={t} className={`card border-t-4 ${t === "A" ? "border-t-pitch-600" : "border-t-sky-600"}`}>
+            <section key={t} className={`card border-t-4 ${TEAMS[t].borderTop}`}>
               <div className="mb-2 flex items-baseline justify-between">
-                <h2 className="h2">Team {t} <span className="text-sm font-normal text-neutral-500">({teams[t].length})</span></h2>
-                <span className="text-sm text-neutral-500">strength {total(teams[t]).toFixed(1)}</span>
+                <h2 className={`h2 ${TEAMS[t].text}`}>{TEAMS[t].name} <span className="text-sm font-normal text-muted">({teams[t].length})</span></h2>
+                <span className="text-sm text-muted">strength {total(teams[t]).toFixed(1)}</span>
               </div>
-              <div className="mb-1 grid grid-cols-[auto_1fr_3rem_3rem_auto] gap-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+              <div className="mb-1 grid grid-cols-[auto_1fr_3rem_3rem_auto] gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted">
                 <span className="w-9" /><span /><span className="text-center">Goals</span><span className="text-center">Ast</span><span className="w-16" />
               </div>
               <ul className="space-y-1">
@@ -118,6 +118,7 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
 
         <div className="flex flex-wrap gap-3">
           <button className="btn">Save result</button>
+          <CopyTeamsButton date={match.date} blue={teams.A.map((e) => e.player.name)} orange={teams.B.map((e) => e.player.name)} />
           <ConfirmButton message="Delete this match?" formAction={deleteMatch.bind(null, id)}>
             Delete match
           </ConfirmButton>
@@ -127,12 +128,12 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
       <section className="card space-y-3">
         <div>
           <h2 className="h2">Share with the team</h2>
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-muted">
             A public page with the result, scorers and club leaders{played ? ", where players vote for man of the match" : ""}. No ratings are shown.
           </p>
         </div>
         {match.shareToken ? (
-          <ShareLink path={`/m/${match.shareToken}`} message={shareMessage} />
+          <ShareLink path={`/m/${match.shareToken}`} />
         ) : (
           <form action={createShareLink.bind(null, id)}>
             <button className="btn">Create share link</button>
@@ -140,11 +141,11 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
         )}
 
         {match.shareToken && played && (
-          <div className="space-y-2 border-t border-black/5 pt-3">
+          <div className="space-y-2 border-t border-line-soft pt-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold">
-                ⭐ MOTM vote{" "}
-                <span className="text-sm font-normal text-neutral-500">
+                MOTM vote{" "}
+                <span className="text-sm font-normal text-muted">
                   {votes.length}/{lineup.length} voted ·{" "}
                   {match.motmPlayerId !== null ? "closed (you picked MOTM above)" : match.votingOpen ? "open" : "closed"}
                 </span>
@@ -158,16 +159,16 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
             {voteTally.ranked.length > 0 && (
               <p className="text-sm">
                 {voteTally.ranked.map(([pid, n]) => `${names.get(pid)} ${n}`).join(" · ")}
-                {!voteTally.leader && <span className="text-amber-700"> (tie: pick MOTM above to settle it)</span>}
+                {!voteTally.leader && <span className="text-warn"> (tie: pick MOTM above to settle it)</span>}
               </p>
             )}
             {votes.length > 0 && (
               <ul className="flex flex-wrap gap-1.5 text-xs">
                 {votes.map((v) => (
-                  <li key={v.voterId} className="flex items-center gap-1 rounded-full bg-neutral-100 py-0.5 pl-2.5 pr-1">
+                  <li key={v.voterId} className="flex items-center gap-1 rounded-full bg-surface-2 py-0.5 pl-2.5 pr-1">
                     {names.get(v.voterId)} → {names.get(v.candidateId)}
                     <form action={removeVote.bind(null, id, v.voterId)}>
-                      <button className="rounded-full px-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600" title="Remove this vote">✕</button>
+                      <button className="rounded-full px-1.5 text-muted hover:bg-danger-dim hover:text-danger" title="Remove this vote">✕</button>
                     </form>
                   </li>
                 ))}
@@ -189,8 +190,8 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
             </select>
           </div>
           <select name="team" className="input w-auto" defaultValue={teams.A.length <= teams.B.length ? "A" : "B"}>
-            <option value="A">Team A</option>
-            <option value="B">Team B</option>
+            <option value="A">{TEAMS.A.name}</option>
+            <option value="B">{TEAMS.B.name}</option>
           </select>
           <button className="btn-secondary">Add</button>
         </form>
@@ -219,13 +220,13 @@ function LineupRow({
       <PosBadge position={player.position} />
       <Link href={`/players/${player.id}`} className="truncate hover:underline">
         {player.name}
-        {motm && <span className="ml-1" title="Man of the match">⭐</span>}
+        {motm && <Star className="ml-1 inline text-accent" size={13} />}
       </Link>
       <input name={`goals_${player.id}`} type="number" min={0} inputMode="numeric" defaultValue={goals ?? ""} className="input px-1 py-1 text-center" aria-label={`${player.name} goals`} />
       <input name={`assists_${player.id}`} type="number" min={0} inputMode="numeric" defaultValue={assists ?? ""} className="input px-1 py-1 text-center" aria-label={`${player.name} assists`} />
       <span className="flex w-16 justify-end">
-        <button formAction={switchTeam.bind(null, matchId, player.id)} className="rounded px-2 py-1 text-neutral-500 hover:bg-black/5" title={`Move to team ${team === "A" ? "B" : "A"}`}>⇄</button>
-        <button formAction={removeFromMatch.bind(null, matchId, player.id)} className="rounded px-2 py-1 text-neutral-400 hover:bg-red-50 hover:text-red-600" title="Remove from match">✕</button>
+        <button formAction={switchTeam.bind(null, matchId, player.id)} className="rounded px-2 py-1 text-muted hover:bg-surface-2" title={`Move to ${TEAMS[team === "A" ? "B" : "A"].name}`}>⇄</button>
+        <button formAction={removeFromMatch.bind(null, matchId, player.id)} className="rounded px-2 py-1 text-muted hover:bg-danger-dim hover:text-danger" title="Remove from match">✕</button>
       </span>
     </li>
   );

@@ -19,18 +19,18 @@ export default async function SettingsPage() {
       <form action={saveSettings} className="card space-y-4">
         <div>
           <h2 className="h2">Results adjust ratings</h2>
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-muted">
             Team strength = your rating + an adjustment from results (Elo). Players who keep winning get nudged up, players who
             keep losing get nudged down — capped at ±{MAX_FORM_ADJUST} points.
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-4">
           {WEIGHTS.map((w) => (
-            <label key={w.value} className="flex cursor-pointer items-start gap-2 rounded-lg border border-black/10 p-3 has-checked:border-pitch-700 has-checked:bg-pitch-50">
-              <input type="radio" name="formWeight" value={w.value} defaultChecked={cfg.formWeight === w.value} className="mt-1 accent-pitch-700" />
+            <label key={w.value} className="flex cursor-pointer items-start gap-2 rounded-lg border border-line p-3 has-checked:border-accent has-checked:bg-accent-dim">
+              <input type="radio" name="formWeight" value={w.value} defaultChecked={cfg.formWeight === w.value} className="mt-1 accent-accent" />
               <span>
                 <span className="block font-semibold">{w.label}</span>
-                <span className="text-xs text-neutral-500">{w.desc}</span>
+                <span className="text-xs text-muted">{w.desc}</span>
               </span>
             </label>
           ))}
@@ -38,7 +38,7 @@ export default async function SettingsPage() {
         <button className="btn">Save</button>
       </form>
 
-      <section className="card space-y-2 text-sm text-neutral-700">
+      <section className="card space-y-2 text-sm text-soft">
         <h2 className="h2">How teams are picked</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>Every possible split is checked (for up to ~24 players), and the 3 best are shown.</li>

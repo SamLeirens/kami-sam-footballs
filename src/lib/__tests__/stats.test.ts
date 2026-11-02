@@ -103,3 +103,13 @@ describe("pairs", () => {
     expect(duos.every((d) => d.winPct === 100)).toBe(true);
   });
 });
+
+import { teamsText } from "../teams";
+
+describe("teamsText", () => {
+  it("writes the teams in Dutch", () => {
+    expect(teamsText("2026-11-09", ["Jonas", "Milan"], ["Lucas"])).toBe(
+      "⚽ Ploegen voor maandag 9 november\n\n🔵 *Blauw* (2)\n- Jonas\n- Milan\n\n🟠 *Oranje* (1)\n- Lucas",
+    );
+  });
+});

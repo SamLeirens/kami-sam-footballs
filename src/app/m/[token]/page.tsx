@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { TEAMS } from "@/lib/teams";
+import { Star } from "@/components/icons";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { formatDate } from "@/components/ui";
@@ -20,7 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[token]">): Pro
   if (!data) return { title: "Kami Football" };
   const { match } = data;
   const title = isPlayed(match)
-    ? `Team A ${match.scoreA}–${match.scoreB} Team B · ${formatDate(match.date)}`
+    ? `${TEAMS.A.name} ${match.scoreA}–${match.scoreB} ${TEAMS.B.name} · ${formatDate(match.date)}`
     : `Teams for ${formatDate(match.date)}`;
   return { title, description: isPlayed(match) ? "Result, stats and man of the match vote" : "Kami Football line-ups" };
 }
@@ -56,54 +58,62 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
   const leaders = [
     { title: "Win %", rows: [...qualified].sort((a, b) => b.stats.winPct - a.stats.winPct).slice(0, 3).map((p) => [p.name, `${p.stats.winPct}%`]) },
     { title: "Goals", rows: club.players.filter((p) => p.stats.goals).sort((a, b) => b.stats.goals - a.stats.goals).slice(0, 3).map((p) => [p.name, p.stats.goals]) },
-    { title: "⭐ MOTM", rows: club.players.filter((p) => p.stats.motm).sort((a, b) => b.stats.motm - a.stats.motm).slice(0, 3).map((p) => [p.name, `${p.stats.motm}×`]) },
+    { title: "MOTM", rows: club.players.filter((p) => p.stats.motm).sort((a, b) => b.stats.motm - a.stats.motm).slice(0, 3).map((p) => [p.name, `${p.stats.motm}×`]) },
   ].filter((l) => l.rows.length);
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 space-y-4 px-4 py-6">
-      <div className="text-center text-sm font-semibold text-pitch-800">⚽ Kami Football · {formatDate(match.date)}</div>
+      <div className="flex items-baseline justify-between">
+        <span className="font-display text-2xl leading-none font-extrabold tracking-wider">KAMI FC</span>
+        <span className="text-xs text-muted">{formatDate(match.date)}</span>
+      </div>
 
       {/* Scoreboard */}
-      <section className="overflow-hidden rounded-2xl bg-pitch-800 text-white shadow">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-6 text-center">
-          <div>
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/70">Team A</div>
-            {winner === "A" && <div className="text-xs">🏆</div>}
+      <section className="overflow-hidden rounded-[20px] border border-line bg-surface">
+        <div className="grid grid-cols-3 items-center px-4 py-6">
+          <div className="flex flex-col gap-1">
+            <span className="font-display text-2xl font-bold text-team-a uppercase">{TEAMS.A.name}</span>
+            {winner === "A" && <span className="text-[11px] text-muted">Winner</span>}
           </div>
-          <div className="font-mono text-5xl font-bold tabular-nums">
+          <div className="num text-center text-6xl leading-none font-extrabold">
             {played ? `${match.scoreA}–${match.scoreB}` : "vs"}
           </div>
-          <div>
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/70">Team B</div>
-            {winner === "B" && <div className="text-xs">🏆</div>}
+          <div className="flex flex-col items-end gap-1">
+            <span className="font-display text-2xl font-bold text-team-b uppercase">{TEAMS.B.name}</span>
+            {winner === "B" && <span className="text-[11px] text-muted">Winner</span>}
           </div>
         </div>
         {played && (scorers.length > 0 || match.motmId) && (
-          <div className="space-y-1 bg-black/15 px-4 py-3 text-center text-sm">
-            {scorers.length > 0 && (
-              <div>⚽ {scorers.map((e) => `${e.name}${(e.goals ?? 0) > 1 ? ` ×${e.goals}` : ""}`).join(", ")}</div>
-            )}
+          <div className="flex flex-wrap justify-center gap-2 border-t border-line-soft px-4 py-3 text-[13px]">
+            {scorers.map((e) => (
+              <span key={e.playerId} className="rounded-full bg-surface-2 px-2.5 py-1.5">
+                {e.name}
+                {(e.goals ?? 0) > 1 && ` ×${e.goals}`}
+              </span>
+            ))}
             {match.motmId && names.has(match.motmId) && !votingLive && (
-              <div className="font-semibold">⭐ Man of the match: {names.get(match.motmId)}</div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-dim px-2.5 py-1.5 font-semibold text-accent">
+                <Star /> MOTM {names.get(match.motmId)}
+              </span>
             )}
           </div>
         )}
-        {match.notes && <div className="px-4 pb-3 text-center text-sm text-white/80">{match.notes}</div>}
+        {match.notes && <div className="border-t border-line-soft px-4 py-3 text-center text-sm text-muted">{match.notes}</div>}
       </section>
 
       {/* MOTM vote */}
       {played && (votingLive || votes.length > 0) && (
         <section className="card space-y-4">
           <div className="flex items-baseline justify-between">
-            <h2 className="h2">⭐ Man of the match</h2>
-            <span className="text-xs text-neutral-500">
+            <h2 className="h2">Man of the match</h2>
+            <span className="text-xs text-muted">
               {votingLive ? `voting open · ${votes.length}/${lineup.length} voted` : "voting closed"}
             </span>
           </div>
 
           {votingLive &&
             (myVote ? (
-              <p className="rounded-lg bg-pitch-50 px-3 py-2 text-sm">
+              <p className="rounded-lg bg-accent-dim px-3 py-2 text-sm">
                 Thanks {names.get(myVote.voterId)} — you voted for <b>{names.get(myVote.candidateId)}</b>.
               </p>
             ) : (
@@ -115,18 +125,18 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
               {t.ranked.map(([id, n]) => (
                 <li key={id} className="text-sm">
                   <div className="mb-0.5 flex justify-between">
-                    <span className={id === match.motmId ? "font-semibold" : ""}>{id === match.motmId && "⭐ "}{names.get(id)}</span>
-                    <span className="tabular-nums text-neutral-500">{n} vote{n === 1 ? "" : "s"}</span>
+                    <span className={id === match.motmId ? "font-semibold" : ""}>{id === match.motmId && <Star className="mr-1 inline text-accent" size={13} />}{names.get(id)}</span>
+                    <span className="tabular-nums text-muted">{n} vote{n === 1 ? "" : "s"}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-black/5">
-                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${(n / t.ranked[0][1]) * 100}%` }} />
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${(n / t.ranked[0][1]) * 100}%` }} />
                   </div>
                 </li>
               ))}
             </ul>
           )}
           {votes.length > 0 && (
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted">
               Voted: {votes.map((v) => names.get(v.voterId)).join(", ")}
             </p>
           )}
@@ -136,19 +146,19 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
       {/* Line-ups */}
       <div className="grid grid-cols-2 gap-3">
         {(["A", "B"] as const).map((team) => (
-          <section key={team} className={`card border-t-4 p-3 ${team === "A" ? "border-t-pitch-600" : "border-t-sky-600"}`}>
+          <section key={team} className={`card border-t-4 p-3 ${TEAMS[team].borderTop}`}>
             <h2 className="mb-2 font-semibold">
-              Team {team} <span className="text-xs font-normal text-neutral-500">({teams[team].length})</span>
+              <span className={TEAMS[team].text}>{TEAMS[team].name}</span> <span className="text-xs font-normal text-muted">({teams[team].length})</span>
             </h2>
             <ul className="space-y-1 text-sm">
               {teams[team].map((e) => (
                 <li key={e.playerId} className="flex items-center gap-1">
                   <span className="flex-1 truncate">
                     {e.name}
-                    {e.playerId === match.motmId && !votingLive && " ⭐"}
+                    {e.playerId === match.motmId && !votingLive && <Star className="ml-1 inline text-accent" size={12} />}
                   </span>
-                  {(e.goals ?? 0) > 0 && <span className="text-xs">⚽{(e.goals ?? 0) > 1 ? e.goals : ""}</span>}
-                  {(e.assists ?? 0) > 0 && <span className="text-xs text-neutral-500">🅰️{(e.assists ?? 0) > 1 ? e.assists : ""}</span>}
+                  {(e.goals ?? 0) > 0 && <span className="text-xs text-soft">{e.goals}G</span>}
+                  {(e.assists ?? 0) > 0 && <span className="text-xs text-muted">{e.assists}A</span>}
                 </li>
               ))}
             </ul>
@@ -157,7 +167,7 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
       </div>
 
       {assisters.length > 0 && (
-        <p className="text-center text-xs text-neutral-500">
+        <p className="text-center text-xs text-muted">
           Assists: {assisters.map((e) => `${e.name}${(e.assists ?? 0) > 1 ? ` ×${e.assists}` : ""}`).join(", ")}
         </p>
       )}

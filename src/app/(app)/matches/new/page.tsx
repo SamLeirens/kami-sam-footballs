@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loadClub } from "@/lib/data";
 import { TeamPicker } from "./TeamPicker";
 
@@ -12,25 +13,29 @@ export default async function NewMatchPage() {
   // Pre-tick whoever played last time.
   const lastPlayers = Object.keys(previous).map(Number);
 
+  if (active.length < 2) {
+    return (
+      <div className="space-y-4">
+        <h1 className="h1">Pick teams</h1>
+        <p className="card text-sm text-muted">
+          Add some players first. <Link href="/players" className="font-semibold text-accent">Go to players</Link>
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <h1 className="h1">Pick teams</h1>
-      {active.length < 2 ? (
-        <p className="card text-sm text-neutral-600">Add some players first.</p>
-      ) : (
-        <TeamPicker
-          players={active.map((p) => ({
-            id: p.id,
-            name: p.name,
-            position: p.position,
-            strength: p.strength,
-            attack: p.attack,
-            defence: p.defence,
-          }))}
-          previous={previous}
-          preselected={lastPlayers}
-        />
-      )}
-    </div>
+    <TeamPicker
+      players={active.map((p) => ({
+        id: p.id,
+        name: p.name,
+        position: p.position,
+        strength: p.strength,
+        attack: p.attack,
+        defence: p.defence,
+      }))}
+      previous={previous}
+      preselected={lastPlayers}
+    />
   );
 }

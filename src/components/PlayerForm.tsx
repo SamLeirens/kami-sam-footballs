@@ -40,8 +40,8 @@ export function PlayerForm({
         <button className="btn" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
         </button>
-        {state?.error && <span className="text-sm text-red-600">{state.error}</span>}
-        {state?.ok && !pending && <span className="text-sm text-pitch-700">Saved ✓</span>}
+        {state?.error && <span className="text-sm text-danger">{state.error}</span>}
+        {state?.ok && !pending && <span className="text-sm text-accent">Saved ✓</span>}
       </div>
     </form>
   );
@@ -73,7 +73,7 @@ function Fields({ initial, showActive, autoFocus }: { initial: Initial; showActi
               <label
                 key={p}
                 className={`cursor-pointer rounded-lg border px-3 py-2 text-sm font-semibold ${
-                  values.position === p ? "border-pitch-700 bg-pitch-700 text-white" : "border-black/15 bg-white"
+                  values.position === p ? "border-accent bg-accent text-ground" : "border-line bg-surface"
                 }`}
               >
                 <input
@@ -106,13 +106,13 @@ function Fields({ initial, showActive, autoFocus }: { initial: Initial; showActi
               max={10}
               value={values[key]}
               onChange={(e) => set(key, Number(e.target.value))}
-              className="w-full accent-pitch-700"
+              className="w-full accent-accent"
             />
           </div>
         ))}
-        <div className="flex items-end justify-between rounded-lg bg-pitch-50 px-3 py-2">
+        <div className="flex items-end justify-between rounded-lg bg-accent-dim px-3 py-2">
           <span className="label mb-0">Overall</span>
-          <span className="text-2xl font-bold text-pitch-800">{overall(values)}</span>
+          <span className="text-2xl font-bold text-accent">{overall(values)}</span>
         </div>
       </div>
 
@@ -123,7 +123,7 @@ function Fields({ initial, showActive, autoFocus }: { initial: Initial; showActi
             name="active"
             checked={values.active ?? true}
             onChange={(e) => set("active", e.target.checked)}
-            className="h-4 w-4 accent-pitch-700"
+            className="h-4 w-4 accent-accent"
           />
           Active (shows up when picking teams)
         </label>

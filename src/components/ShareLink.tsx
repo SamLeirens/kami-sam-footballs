@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 
 const noop = () => () => {};
 
-export function ShareLink({ path, message }: { path: string; message: string }) {
+export function ShareLink({ path }: { path: string }) {
   const [copied, setCopied] = useState(false);
   const origin = useSyncExternalStore(noop, () => window.location.origin, () => "");
   const url = `${origin}${path}`;
@@ -24,9 +24,6 @@ export function ShareLink({ path, message }: { path: string; message: string }) 
         >
           {copied ? "Copied ✓" : "Copy link"}
         </button>
-        <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(`${message}\n${url}`)}`} target="_blank" rel="noreferrer">
-          Share on WhatsApp
-        </a>
         <a className="btn-secondary" href={path} target="_blank" rel="noreferrer">Open ↗</a>
       </div>
     </div>

@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { Form, formatDate, Stat } from "@/components/ui";
+import { TEAMS } from "@/lib/teams";
+import { Icon, Star } from "@/components/icons";
+import { LeaderTabs, type LeaderBoard } from "@/components/LeaderTabs";
+import { formatDate } from "@/components/ui";
 import { loadClub, type PlayerRow } from "@/lib/data";
 import { isPlayed } from "@/lib/stats";
 
@@ -7,125 +10,124 @@ const MIN_GAMES = 3;
 
 export default async function Dashboard() {
   const { players, matches, entries } = await loadClub();
+  const names = new Map(players.map((p) => [p.id, p.name]));
   const playedMatches = matches.filter(isPlayed);
-  const planned = matches.filter((m) => !isPlayed(m));
-  const next = planned.at(-1); // matches are newest first; the earliest planned one
+  const next = matches.filter((m) => !isPlayed(m)).at(-1); // newest first → earliest planned
   const last = playedMatches[0];
-  const count = (matchId: number) => entries.filter((e) => e.matchId === matchId).length;
-  const totalGoals = playedMatches.reduce((s, m) => s + m.scoreA + m.scoreB, 0);
-
-  const qualified = players.filter((p) => p.stats.played >= MIN_GAMES);
-  const topWin = [...qualified].sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played).slice(0, 5);
-  const topMotm = players.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm || a.stats.played - b.stats.played).slice(0, 5);
-  const motmName = (id: number | null) => players.find((p) => p.id === id)?.name;
-  const topScorers = players.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals).slice(0, 5);
+  const lineup = (id: number) => entries.filter((e) => e.matchId === id);
 
   if (players.length === 0) {
     return (
-      <div className="card mx-auto max-w-md space-y-3 text-center">
-        <h1 className="h1">Welcome 👋</h1>
-        <p className="text-sm text-neutral-600">Start by adding your players and rating them.</p>
-        <Link href="/players" className="btn">Add players</Link>
-      </div>
+      <section className="mx-auto max-w-md space-y-4 rounded-3xl bg-accent p-6 text-ground">
+        <h1 className="font-display text-5xl leading-[0.9] font-extrabold uppercase">Welcome</h1>
+        <p className="text-sm font-medium">Start by adding your players and rating them. Then pick your first fair teams.</p>
+        <Link href="/players" className="flex min-h-12 items-center justify-between rounded-xl bg-ground px-5 font-semibold text-fg">
+          Add players <Icon name="arrowRight" size={20} />
+        </Link>
+      </section>
     );
   }
 
+  const board = (rows: PlayerRow[], value: (p: PlayerRow) => string) =>
+    rows.slice(0, 5).map((p) => ({ id: p.id, name: p.name, value: value(p), form: p.stats.form }));
+  const boards: LeaderBoard[] = [
+    {
+      key: "win",
+      label: "Win %",
+      empty: `Players need ${MIN_GAMES}+ games to appear here.`,
+      rows: board(
+        players.filter((p) => p.stats.played >= MIN_GAMES).sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played),
+        (p) => `${Math.round(p.stats.winPct)}%`,
+      ),
+    },
+    {
+      key: "goals",
+      label: "Goals",
+      empty: "No goals recorded yet.",
+      rows: board(players.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals), (p) => String(p.stats.goals)),
+    },
+    {
+      key: "motm",
+      label: "MOTM",
+      empty: "No man of the match awards yet.",
+      rows: board(players.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm), (p) => `${p.stats.motm}×`),
+    },
+  ];
+
+  const nextCount = next ? lineup(next.id).length : 0;
+  const lastLineup = last ? lineup(last.id) : [];
+  const scorers = lastLineup.filter((e) => (e.goals ?? 0) > 0).sort((a, b) => (b.goals ?? 0) - (a.goals ?? 0));
+  const winner = last ? (last.scoreA > last.scoreB ? "A" : last.scoreB > last.scoreA ? "B" : null) : null;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="h1">Dashboard</h1>
-        <Link href="/matches/new" className="btn">⚽ Pick teams</Link>
-      </div>
+    <div className="mx-auto max-w-xl space-y-3.5 md:max-w-none md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+      <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
+        <div className="flex items-baseline justify-between text-xs font-semibold">
+          <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
+          {next && (
+            <span>
+              {nextCount} in · {Math.floor(nextCount / 2)} v {Math.ceil(nextCount / 2)}
+            </span>
+          )}
+        </div>
+        <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
+          {next ? formatDate(next.date, { short: true }) : "Pick teams"}
+        </div>
+        <Link
+          href={next ? `/matches/${next.id}` : "/matches/new"}
+          className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
+        >
+          {next ? "Open match" : "Pick fair teams"}
+          <Icon name="arrowRight" size={20} />
+        </Link>
+      </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Active players" value={players.filter((p) => p.active).length} />
-        <Stat label="Matches played" value={playedMatches.length} />
-        <Stat label="Goals scored" value={totalGoals} sub={playedMatches.length ? `${(totalGoals / playedMatches.length).toFixed(1)} per match` : undefined} />
-        <Stat label="Draws" value={playedMatches.filter((m) => m.scoreA === m.scoreB).length} />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {next && (
-          <Link href={`/matches/${next.id}`} className="card block border-l-4 border-l-amber-500 hover:bg-amber-50/40">
-            <div className="label">Next match</div>
-            <div className="text-lg font-semibold">{formatDate(next.date)}</div>
-            <div className="text-sm text-neutral-500">{count(next.id)} players · enter result →</div>
+      {last ? (
+        <section className="card flex flex-col gap-2.5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs font-semibold tracking-widest text-muted uppercase">
+              Last result · {formatDate(last.date, { short: true })}
+            </span>
+            <Link href={last.shareToken ? `/m/${last.shareToken}` : `/matches/${last.id}`} className="text-[13px] font-semibold text-accent">
+              {last.shareToken ? "Share page" : "Details"}
+            </Link>
+          </div>
+          <Link href={`/matches/${last.id}`} className="grid grid-cols-3 items-center">
+            <span className="flex flex-col gap-1">
+              <span className="font-display text-xl font-bold text-team-a uppercase">{TEAMS.A.name}</span>
+              {winner === "A" && <span className="text-[11px] text-muted">Winner</span>}
+            </span>
+            <span className="num text-center text-[56px] leading-none font-extrabold">
+              {last.scoreA}–{last.scoreB}
+            </span>
+            <span className="flex flex-col items-end gap-1">
+              <span className="font-display text-xl font-bold text-team-b uppercase">{TEAMS.B.name}</span>
+              {winner === "B" && <span className="text-[11px] text-muted">Winner</span>}
+            </span>
           </Link>
-        )}
-        {last && (
-          <Link href={`/matches/${last.id}`} className="card block border-l-4 border-l-pitch-600 hover:bg-pitch-50/40">
-            <div className="label">Last result</div>
-            <div className="text-lg font-semibold">
-              Team A <span className="font-mono">{last.scoreA} – {last.scoreB}</span> Team B
+          {(scorers.length > 0 || last.motmId) && (
+            <div className="flex flex-wrap gap-2 text-[13px]">
+              {scorers.map((e) => (
+                <span key={e.playerId} className="rounded-full bg-surface-2 px-2.5 py-1.5">
+                  {names.get(e.playerId)}
+                  {(e.goals ?? 0) > 1 && ` ×${e.goals}`}
+                </span>
+              ))}
+              {last.motmId && names.has(last.motmId) && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-dim px-2.5 py-1.5 text-accent">
+                  <Star /> MOTM {names.get(last.motmId)}
+                </span>
+              )}
             </div>
-            <div className="text-sm text-neutral-500">
-              {formatDate(last.date)}
-              {motmName(last.motmId) && <> · ⭐ {motmName(last.motmId)}</>}
-            </div>
-          </Link>
-        )}
-      </div>
+          )}
+        </section>
+      ) : (
+        <section className="card flex items-center text-sm text-muted">No results yet. Enter a score after your first match.</section>
+      )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Leaderboard
-          title="Best win %"
-          empty={`Players need ${MIN_GAMES}+ games to appear here.`}
-          rows={topWin}
-          value={(p) => `${p.stats.winPct}%`}
-          extra={(p) => <Form form={p.stats.form} />}
-        />
-        <Leaderboard
-          title="Top scorers"
-          empty="No goals recorded yet."
-          rows={topScorers}
-          value={(p) => p.stats.goals}
-          extra={(p) => <span className="text-xs text-neutral-500">{p.stats.played} games</span>}
-        />
-        <Leaderboard
-          title="⭐ Man of the match"
-          empty="No awards yet."
-          rows={topMotm}
-          value={(p) => `${p.stats.motm}×`}
-          extra={(p) => <span className="text-xs text-neutral-500">{p.stats.played} games</span>}
-        />
-      </div>
-      <div className="text-right">
-        <Link href="/stats" className="text-sm font-medium text-pitch-700 hover:underline">All stats →</Link>
+      <div className="md:col-span-2">
+        <LeaderTabs boards={boards} />
       </div>
     </div>
-  );
-}
-
-function Leaderboard({
-  title,
-  rows,
-  value,
-  extra,
-  empty,
-}: {
-  title: string;
-  rows: PlayerRow[];
-  value: (p: PlayerRow) => React.ReactNode;
-  extra: (p: PlayerRow) => React.ReactNode;
-  empty: string;
-}) {
-  return (
-    <section className="card">
-      <h2 className="h2 mb-2">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="text-sm text-neutral-500">{empty}</p>
-      ) : (
-        <ol className="divide-y divide-black/5 text-sm">
-          {rows.map((p, i) => (
-            <li key={p.id} className="flex items-center gap-3 py-2">
-              <span className="w-4 text-neutral-400">{i + 1}</span>
-              <Link href={`/players/${p.id}`} className="flex-1 hover:underline">{p.name}</Link>
-              {extra(p)}
-              <span className="w-12 text-right font-bold tabular-nums">{value(p)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
   );
 }
