@@ -6,7 +6,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { PlayerForm } from "@/components/PlayerForm";
 import { Form, formatDate, PosBadge, ResultChip, Stat } from "@/components/ui";
 import { loadClub } from "@/lib/data";
-import { isPlayed, resultFor } from "@/lib/stats";
+import { isPlayed, resultFor, winPct, type Record3 } from "@/lib/stats";
 import { deletePlayer, updatePlayer } from "../actions";
 
 export default async function PlayerPage({ params }: PageProps<"/players/[id]">) {
@@ -25,6 +25,22 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
   const myEntries = new Map(club.entries.filter((e) => e.playerId === id).map((e) => [e.matchId, e]));
   const myMatches = club.matches.filter((m) => myEntries.has(m.id));
   const s = p.stats;
+
+  // Win % with / against each other player
+  const MIN = 3;
+  const mates = [...(club.pairs.get(id) ?? new Map()).entries()]
+    .map(([otherId, r]) => ({ other: club.players.find((x) => x.id === otherId)!, ...r }))
+    .filter((r) => r.other)
+    .sort(
+      (a, b) =>
+        Number(b.with.played >= MIN) - Number(a.with.played >= MIN) ||
+        winPct(b.with) - winPct(a.with) ||
+        b.with.played - a.with.played,
+    );
+  const bestPartner = mates.find((m) => m.with.played >= MIN);
+  const nemesis = [...mates]
+    .filter((m) => m.against.played >= MIN)
+    .sort((a, b) => winPct(a.against) - winPct(b.against) || b.against.played - a.against.played)[0];
 
   return (
     <div className="space-y-6">
@@ -48,6 +64,52 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
         <h2 className="h2 mb-4">Edit ratings</h2>
         <PlayerForm action={updatePlayer.bind(null, id)} initial={p} submitLabel="Save" showActive />
       </section>
+
+      {mates.length > 0 && (
+        <section className="card">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="h2">Teammates & opponents</h2>
+            <span className="text-xs text-neutral-500">{p.name}&apos;s results with and against each player</span>
+          </div>
+          {(bestPartner || nemesis) && (
+            <div className="mb-3 flex flex-wrap gap-2 text-sm">
+              {bestPartner && (
+                <span className="rounded-full bg-pitch-50 px-3 py-1 text-pitch-800">
+                  🤝 Best partner: <b>{bestPartner.other.name}</b> ({winPct(bestPartner.with)}% in {bestPartner.with.played})
+                </span>
+              )}
+              {nemesis && (
+                <span className="rounded-full bg-red-50 px-3 py-1 text-red-800">
+                  😈 Toughest opponent: <b>{nemesis.other.name}</b> ({winPct(nemesis.against)}% against in {nemesis.against.played})
+                </span>
+              )}
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase tracking-wide text-neutral-500">
+                <tr>
+                  <th className="py-1 text-left">Player</th>
+                  <th className="px-2 py-1 text-right" colSpan={2}>Together</th>
+                  <th className="px-2 py-1 text-right" colSpan={2}>Against</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mates.map((m) => (
+                  <tr key={m.other.id} className="border-t border-black/5">
+                    <td className="py-1.5">
+                      <Link href={`/players/${m.other.id}`} className="hover:underline">{m.other.name}</Link>
+                    </td>
+                    <PairCells r={m.with} min={MIN} />
+                    <PairCells r={m.against} min={MIN} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-neutral-500">Win % is {p.name}&apos;s. Greyed out = fewer than {MIN} games, so take it with a pinch of salt.</p>
+        </section>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="card">
@@ -95,5 +157,19 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
         </ConfirmButton>
       </form>
     </div>
+  );
+}
+
+function PairCells({ r, min }: { r: Record3; min: number }) {
+  if (!r.played) return <td className="px-2 py-1.5 text-right text-neutral-300" colSpan={2}>–</td>;
+  const pct = winPct(r);
+  const color = r.played < min ? "text-neutral-400" : pct >= 60 ? "text-pitch-700" : pct <= 40 ? "text-red-600" : "";
+  return (
+    <>
+      <td className="px-2 py-1.5 text-right text-xs tabular-nums text-neutral-500" title={`${r.wins}W ${r.draws}D ${r.losses}L`}>
+        {r.wins}-{r.draws}-{r.losses}
+      </td>
+      <td className={`w-14 px-2 py-1.5 text-right font-semibold tabular-nums ${color}`}>{pct}%</td>
+    </>
   );
 }

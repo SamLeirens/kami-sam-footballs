@@ -105,3 +105,52 @@ export function computeStats(matches: StatsMatch[], entries: StatsEntry[]): Map<
   }
   return stats;
 }
+
+export type Record3 = { played: number; wins: number; draws: number; losses: number };
+export type PairRecord = { with: Record3; against: Record3 };
+
+const rec = (): Record3 => ({ played: 0, wins: 0, draws: 0, losses: 0 });
+export const winPct = (r: Record3) => (r.played ? Math.round((r.wins / r.played) * 1000) / 10 : 0);
+
+/**
+ * For every player, their record alongside and against every other player.
+ * pairs.get(a).get(b).with = a's results when on b's team; .against = a's results when facing b.
+ */
+export function computePairs(matches: StatsMatch[], entries: StatsEntry[]): Map<number, Map<number, PairRecord>> {
+  const pairs = new Map<number, Map<number, PairRecord>>();
+  const get = (a: number, b: number) => {
+    let m = pairs.get(a);
+    if (!m) pairs.set(a, (m = new Map()));
+    let r = m.get(b);
+    if (!r) m.set(b, (r = { with: rec(), against: rec() }));
+    return r;
+  };
+  const byMatch = new Map<number, StatsEntry[]>();
+  for (const e of entries) byMatch.set(e.matchId, [...(byMatch.get(e.matchId) ?? []), e]);
+
+  for (const m of matches) {
+    if (!isPlayed(m)) continue;
+    const list = byMatch.get(m.id) ?? [];
+    for (const a of list) {
+      const res = resultFor(m, a.team);
+      for (const b of list) {
+        if (a.playerId === b.playerId) continue;
+        const r = get(a.playerId, b.playerId)[a.team === b.team ? "with" : "against"];
+        r.played++;
+        if (res === "W") r.wins++;
+        else if (res === "D") r.draws++;
+        else r.losses++;
+      }
+    }
+  }
+  return pairs;
+}
+
+/** Unique duos (a < b) who played together, best win % first. */
+export function bestDuos(pairs: Map<number, Map<number, PairRecord>>, minGames: number) {
+  const out: { a: number; b: number; rec: Record3; winPct: number }[] = [];
+  for (const [a, m] of pairs)
+    for (const [b, r] of m)
+      if (a < b && r.with.played >= minGames) out.push({ a, b, rec: r.with, winPct: winPct(r.with) });
+  return out.sort((x, y) => y.winPct - x.winPct || y.rec.played - x.rec.played);
+}

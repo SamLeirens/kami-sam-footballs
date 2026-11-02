@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Form, PosBadge } from "@/components/ui";
 import { loadClub, type PlayerRow } from "@/lib/data";
+import { bestDuos } from "@/lib/stats";
 
 const COLUMNS = [
   { key: "played", label: "P", get: (p: PlayerRow) => p.stats.played },
@@ -22,7 +23,10 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
   const min = Math.max(0, Number(sp.min ?? 1) || 0);
   const col = COLUMNS.find((c) => c.key === sort)!;
 
-  const { players } = await loadClub();
+  const { players, pairs } = await loadClub();
+  const names = new Map(players.map((p) => [p.id, p.name]));
+  const duoMin = Math.max(3, min);
+  const duos = bestDuos(pairs, duoMin);
   const rows = players
     .filter((p) => p.stats.played >= min)
     .sort((a, b) => col.get(b) - col.get(a) || b.stats.played - a.stats.played);
@@ -84,10 +88,54 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
           </table>
         </div>
       )}
+      {duos.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <DuoList title="🤝 Best duos" duos={duos.slice(0, 8)} names={names} min={duoMin} />
+          <DuoList title="💀 Worst duos" duos={duos.slice(-8).reverse().filter((d) => !duos.slice(0, 8).includes(d))} names={names} min={duoMin} />
+        </div>
+      )}
+
       <p className="text-xs text-neutral-500">
         Win % = wins ÷ games played (draws count as not-won). Elo starts at 1000 and moves with every result, weighted by how strong
         each team was. Goals/assists only count matches where you entered them. ⭐ = man of the match awards.
       </p>
     </div>
+  );
+}
+
+function DuoList({
+  title,
+  duos,
+  names,
+  min,
+}: {
+  title: string;
+  duos: ReturnType<typeof bestDuos>;
+  names: Map<number, string>;
+  min: number;
+}) {
+  if (!duos.length) return null;
+  return (
+    <section className="card">
+      <div className="mb-2 flex items-baseline justify-between">
+        <h2 className="h2">{title}</h2>
+        <span className="text-xs text-neutral-500">{min}+ games together</span>
+      </div>
+      <ol className="divide-y divide-black/5 text-sm">
+        {duos.map((d) => (
+          <li key={`${d.a}-${d.b}`} className="flex items-center gap-2 py-1.5">
+            <span className="flex-1">
+              <Link href={`/players/${d.a}`} className="hover:underline">{names.get(d.a)}</Link>
+              {" & "}
+              <Link href={`/players/${d.b}`} className="hover:underline">{names.get(d.b)}</Link>
+            </span>
+            <span className="text-xs tabular-nums text-neutral-500">
+              {d.rec.wins}-{d.rec.draws}-{d.rec.losses}
+            </span>
+            <span className="w-14 text-right font-bold tabular-nums">{d.winPct}%</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

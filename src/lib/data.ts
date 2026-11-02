@@ -3,7 +3,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db, matches, matchPlayers, motmVotes, players, settings, type Player } from "@/db";
 import { effectiveMotm } from "./motm";
 import { overall, strength } from "./rating";
-import { computeStats, emptyStats, type PlayerStats } from "./stats";
+import { computePairs, computeStats, emptyStats, type PlayerStats } from "./stats";
 
 export type PlayerRow = Player & { overall: number; strength: number; stats: PlayerStats };
 
@@ -35,5 +35,6 @@ export async function loadClub() {
     const ovr = overall(p);
     return { ...p, overall: ovr, strength: strength(ovr, s.elo, cfg.formWeight), stats: s };
   });
-  return { players: rows, matches: allMatches, entries, votes, settings: cfg };
+  const pairs = computePairs(allMatches, entries);
+  return { players: rows, matches: allMatches, entries, votes, pairs, settings: cfg };
 }

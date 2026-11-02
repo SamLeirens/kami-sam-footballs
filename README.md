@@ -18,6 +18,7 @@ Web app for running our weekly football: rate players, generate fair teams, reco
   - Everyone can see who has voted, so a vote cast in someone else's name gets noticed. The admin can remove votes, close voting, or pick the MOTM themselves (that overrides the vote).
   - Player ratings are never shown on this page.
 - **Stats**: played/W/D/L, win %, goals, assists, last-5 form, Elo, sortable leaderboard.
+- **Teammate stats**: on each player's page, their win % with and against every other player, plus their best partner and toughest opponent. The stats page lists the best and worst duos.
 - **Results adjust strength**: each player's Elo, based on wins and losses, nudges their rating for team picking (capped at ±2, adjustable in Settings).
 - **Admin only**: one password, set as an environment variable. Shared match pages are the only public part.
 

@@ -72,3 +72,34 @@ describe("motm voting", () => {
     expect(effectiveMotm(null, [v(1, 5)])).toBe(5);
   });
 });
+
+import { bestDuos, computePairs } from "../stats";
+
+describe("pairs", () => {
+  const matches = [
+    { id: 1, date: "2026-01-01", scoreA: 2, scoreB: 0 },
+    { id: 2, date: "2026-01-08", scoreA: 0, scoreB: 1 },
+    { id: 3, date: "2026-01-15", scoreA: null, scoreB: null },
+  ];
+  const e = (matchId: number, playerId: number, team: "A" | "B") => ({ matchId, playerId, team, goals: null, assists: null });
+  const entries = [
+    e(1, 1, "A"), e(1, 2, "A"), e(1, 3, "B"),
+    e(2, 1, "A"), e(2, 2, "B"), e(2, 3, "B"),
+    e(3, 1, "A"), e(3, 2, "A"),
+  ];
+  const pairs = computePairs(matches, entries);
+
+  it("records results with and against each teammate", () => {
+    expect(pairs.get(1)!.get(2)).toEqual({
+      with: { played: 1, wins: 1, draws: 0, losses: 0 },
+      against: { played: 1, wins: 0, draws: 0, losses: 1 },
+    });
+    expect(pairs.get(2)!.get(3)!.with).toEqual({ played: 1, wins: 1, draws: 0, losses: 0 });
+  });
+
+  it("lists each duo once, best first", () => {
+    const duos = bestDuos(pairs, 1);
+    expect(duos.map((d) => `${d.a}-${d.b}`)).toEqual(["1-2", "2-3"]);
+    expect(duos.every((d) => d.winPct === 100)).toBe(true);
+  });
+});
