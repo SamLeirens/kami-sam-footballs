@@ -23,8 +23,8 @@ export default async function MatchesPage() {
             <li key={m.id}>
               <Link href={`/matches/${m.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-black/[0.02]">
                 <span className="flex-1 font-medium">{formatDate(m.date)}</span>
-                {m.motmPlayerId && names.has(m.motmPlayerId) && (
-                  <span className="hidden text-sm text-neutral-600 sm:inline">⭐ {names.get(m.motmPlayerId)}</span>
+                {m.motmId && names.has(m.motmId) && (
+                  <span className="hidden text-sm text-neutral-600 sm:inline">⭐ {names.get(m.motmId)}</span>
                 )}
                 <span className="text-sm text-neutral-500">{counts.get(m.id) ?? 0} players</span>
                 {isPlayed(m) ? (

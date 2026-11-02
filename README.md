@@ -12,10 +12,14 @@ Web app for running our weekly football: rate players, generate fair teams, reco
   - Avoids repeating last week's exact teams when an equally fair split exists.
   - Swap players by hand and the balance bar updates live.
   - Copy the teams to WhatsApp.
-- **Results**: score, optional goals and assists per player, late arrivals, players switching sides.
+- **Results**: score, optional goals and assists per player, man of the match, late arrivals, players switching sides.
+- **After-match page to share** (`/m/<link>`, no login needed): score, scorers, line-ups and club leaders, plus a **man of the match vote**.
+  - Each player picks their own name and votes; a name can only vote once, and you can't vote for yourself.
+  - Everyone can see who has voted, so a vote cast in someone else's name gets noticed. The admin can remove votes, close voting, or pick the MOTM themselves (that overrides the vote).
+  - Player ratings are never shown on this page.
 - **Stats**: played/W/D/L, win %, goals, assists, last-5 form, Elo, sortable leaderboard.
 - **Results adjust strength**: each player's Elo, based on wins and losses, nudges their rating for team picking (capped at ±2, adjustable in Settings).
-- **Admin only**: one password, set as an environment variable.
+- **Admin only**: one password, set as an environment variable. Shared match pages are the only public part.
 
 ## Stack (all free)
 

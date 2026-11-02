@@ -60,7 +60,7 @@ export default async function Dashboard() {
             </div>
             <div className="text-sm text-neutral-500">
               {formatDate(last.date)}
-              {motmName(last.motmPlayerId) && <> · ⭐ {motmName(last.motmPlayerId)}</>}
+              {motmName(last.motmId) && <> · ⭐ {motmName(last.motmId)}</>}
             </div>
           </Link>
         )}

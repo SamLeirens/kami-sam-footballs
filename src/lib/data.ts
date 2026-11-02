@@ -1,6 +1,7 @@
 import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
-import { db, matches, matchPlayers, players, settings, type Player } from "@/db";
+import { db, matches, matchPlayers, motmVotes, players, settings, type Player } from "@/db";
+import { effectiveMotm } from "./motm";
 import { overall, strength } from "./rating";
 import { computeStats, emptyStats, type PlayerStats } from "./stats";
 
@@ -13,17 +14,26 @@ export async function getSettings() {
 
 /** Loads everything; a club's worth of data is small, so stats are computed in memory. */
 export async function loadClub() {
-  const [allPlayers, allMatches, entries, cfg] = await Promise.all([
+  const [allPlayers, rawMatches, entries, votes, cfg] = await Promise.all([
     db.select().from(players).orderBy(asc(players.name)),
     db.select().from(matches).orderBy(desc(matches.date), desc(matches.id)),
     db.select().from(matchPlayers),
+    db.select().from(motmVotes),
     getSettings(),
   ]);
-  const stats = computeStats(allMatches, entries);
+  // motmId = who actually gets the award (admin pick, else vote winner)
+  const allMatches = rawMatches.map((m) => ({
+    ...m,
+    motmId: effectiveMotm(m.motmPlayerId, votes.filter((v) => v.matchId === m.id)),
+  }));
+  const stats = computeStats(
+    allMatches.map((m) => ({ ...m, motmPlayerId: m.motmId })),
+    entries,
+  );
   const rows: PlayerRow[] = allPlayers.map((p) => {
     const s = stats.get(p.id) ?? emptyStats();
     const ovr = overall(p);
     return { ...p, overall: ovr, strength: strength(ovr, s.elo, cfg.formWeight), stats: s };
   });
-  return { players: rows, matches: allMatches, entries, settings: cfg };
+  return { players: rows, matches: allMatches, entries, votes, settings: cfg };
 }

@@ -15,6 +15,13 @@
       "when": 1793656780777,
       "tag": "0001_motm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793656931302,
+      "tag": "0002_motm_votes",
+      "breakpoints": true
     }
   ]
 }

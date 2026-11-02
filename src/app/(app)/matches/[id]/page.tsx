@@ -1,10 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { ShareLink } from "@/components/ShareLink";
+import { tally } from "@/lib/motm";
 import { formatDate, PosBadge } from "@/components/ui";
 import { loadClub, type PlayerRow } from "@/lib/data";
 import { isPlayed } from "@/lib/stats";
-import { addToMatch, deleteMatch, removeFromMatch, saveResult, switchTeam } from "../actions";
+import {
+  addToMatch,
+  createShareLink,
+  deleteMatch,
+  removeFromMatch,
+  removeVote,
+  saveResult,
+  setVotingOpen,
+  switchTeam,
+} from "../actions";
 
 export default async function MatchPage({ params }: PageProps<"/matches/[id]">) {
   const id = Number((await params).id);
@@ -23,6 +34,12 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
   const inMatch = new Set(lineup.map((e) => e.playerId));
   const available = club.players.filter((p) => p.active && !inMatch.has(p.id));
   const played = isPlayed(match);
+  const names = new Map(club.players.map((p) => [p.id, p.name]));
+  const votes = club.votes.filter((v) => v.matchId === id);
+  const voteTally = tally(votes);
+  const shareMessage = played
+    ? `⚽ Team A ${match.scoreA}–${match.scoreB} Team B. Vote for your man of the match:`
+    : `⚽ Teams for ${formatDate(match.date)}:`;
 
   return (
     <div className="space-y-6">
@@ -58,7 +75,9 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
             <div>
               <label className="label" htmlFor="motm">⭐ Man of the match</label>
               <select key={match.motmPlayerId ?? "none"} id="motm" name="motm" defaultValue={match.motmPlayerId ?? ""} className="input">
-                <option value="">—</option>
+                <option value="">
+                  {voteTally.leader ? `Players' vote (${names.get(voteTally.leader)})` : "Players' vote"}
+                </option>
                 {(["A", "B"] as const).map((t) => (
                   <optgroup key={t} label={`Team ${t}`}>
                     {teams[t].map((e) => (
@@ -90,7 +109,7 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
               </div>
               <ul className="space-y-1">
                 {teams[t].map((e) => (
-                  <LineupRow key={e.playerId} matchId={id} player={e.player} team={t} goals={e.goals} assists={e.assists} motm={match.motmPlayerId === e.playerId} />
+                  <LineupRow key={e.playerId} matchId={id} player={e.player} team={t} goals={e.goals} assists={e.assists} motm={match.motmId === e.playerId} />
                 ))}
               </ul>
             </section>
@@ -104,6 +123,59 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
           </ConfirmButton>
         </div>
       </form>
+
+      <section className="card space-y-3">
+        <div>
+          <h2 className="h2">Share with the team</h2>
+          <p className="text-sm text-neutral-600">
+            A public page with the result, scorers and club leaders{played ? ", where players vote for man of the match" : ""}. No ratings are shown.
+          </p>
+        </div>
+        {match.shareToken ? (
+          <ShareLink path={`/m/${match.shareToken}`} message={shareMessage} />
+        ) : (
+          <form action={createShareLink.bind(null, id)}>
+            <button className="btn">Create share link</button>
+          </form>
+        )}
+
+        {match.shareToken && played && (
+          <div className="space-y-2 border-t border-black/5 pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold">
+                ⭐ MOTM vote{" "}
+                <span className="text-sm font-normal text-neutral-500">
+                  {votes.length}/{lineup.length} voted ·{" "}
+                  {match.motmPlayerId !== null ? "closed (you picked MOTM above)" : match.votingOpen ? "open" : "closed"}
+                </span>
+              </h3>
+              {match.motmPlayerId === null && (
+                <form action={setVotingOpen.bind(null, id, !match.votingOpen)}>
+                  <button className="btn-secondary">{match.votingOpen ? "Close voting" : "Reopen voting"}</button>
+                </form>
+              )}
+            </div>
+            {voteTally.ranked.length > 0 && (
+              <p className="text-sm">
+                {voteTally.ranked.map(([pid, n]) => `${names.get(pid)} ${n}`).join(" · ")}
+                {!voteTally.leader && <span className="text-amber-700"> (tie: pick MOTM above to settle it)</span>}
+              </p>
+            )}
+            {votes.length > 0 && (
+              <ul className="flex flex-wrap gap-1.5 text-xs">
+                {votes.map((v) => (
+                  <li key={v.voterId} className="flex items-center gap-1 rounded-full bg-neutral-100 py-0.5 pl-2.5 pr-1">
+                    {names.get(v.voterId)} → {names.get(v.candidateId)}
+                    <form action={removeVote.bind(null, id, v.voterId)}>
+                      <button className="rounded-full px-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600" title="Remove this vote">✕</button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </section>
 
       {available.length > 0 && (
         <form action={addToMatch.bind(null, id)} className="card flex flex-wrap items-end gap-3">

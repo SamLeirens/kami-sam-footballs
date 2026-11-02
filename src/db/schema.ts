@@ -45,7 +45,11 @@ export const matches = pgTable("matches", {
   scoreB: integer("score_b"),
   notes: text("notes"),
   // man of the match (optional)
+  // Man of the match picked by the admin. If null, the players' vote decides.
   motmPlayerId: integer("motm_player_id").references(() => players.id, { onDelete: "set null" }),
+  // Public after-match page at /m/<shareToken>; null until the admin shares it.
+  shareToken: text("share_token").unique(),
+  votingOpen: boolean("voting_open").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -66,6 +70,24 @@ export const matchPlayers = pgTable(
   (t) => [primaryKey({ columns: [t.matchId, t.playerId] })],
 );
 
+// One MOTM vote per player per match (enforced by the primary key).
+export const motmVotes = pgTable(
+  "motm_votes",
+  {
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    voterId: integer("voter_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    candidateId: integer("candidate_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.matchId, t.voterId] })],
+);
+
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
   // How much recent results adjust the manual rating (0 = ignore results).
@@ -75,3 +97,4 @@ export const settings = pgTable("settings", {
 export type Player = typeof players.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type MatchPlayer = typeof matchPlayers.$inferSelect;
+export type MotmVote = typeof motmVotes.$inferSelect;

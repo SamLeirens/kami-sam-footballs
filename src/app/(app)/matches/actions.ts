@@ -1,9 +1,10 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
+import { and, eq, or, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { db, matches, matchPlayers } from "@/db";
+import { db, matches, matchPlayers, motmVotes } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -80,6 +81,9 @@ export async function removeFromMatch(matchId: number, playerId: number) {
   await db.transaction(async (tx) => {
     await tx.delete(matchPlayers).where(and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.playerId, playerId)));
     await tx
+      .delete(motmVotes)
+      .where(and(eq(motmVotes.matchId, matchId), or(eq(motmVotes.voterId, playerId), eq(motmVotes.candidateId, playerId))));
+    await tx
       .update(matches)
       .set({ motmPlayerId: sql`NULLIF(${matches.motmPlayerId}, ${playerId})` })
       .where(eq(matches.id, matchId));
@@ -100,4 +104,27 @@ export async function deleteMatch(matchId: number) {
   await requireAdmin();
   await db.delete(matches).where(eq(matches.id, matchId));
   redirect("/matches");
+}
+
+export async function createShareLink(matchId: number) {
+  await requireAdmin();
+  const token = randomBytes(9).toString("base64url");
+  await db
+    .update(matches)
+    .set({ shareToken: sql`COALESCE(${matches.shareToken}, ${token})` })
+    .where(eq(matches.id, matchId));
+  refresh();
+}
+
+export async function setVotingOpen(matchId: number, open: boolean) {
+  await requireAdmin();
+  await db.update(matches).set({ votingOpen: open }).where(eq(matches.id, matchId));
+  refresh();
+}
+
+/** Remove a vote, e.g. if someone voted using another player's name. */
+export async function removeVote(matchId: number, voterId: number) {
+  await requireAdmin();
+  await db.delete(motmVotes).where(and(eq(motmVotes.matchId, matchId), eq(motmVotes.voterId, voterId)));
+  refresh();
 }

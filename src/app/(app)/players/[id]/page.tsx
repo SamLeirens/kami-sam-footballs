@@ -64,7 +64,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
                     <Link href={`/matches/${m.id}`} className="flex-1 hover:underline">{formatDate(m.date)}</Link>
                     <span className="text-neutral-500">Team {e.team}</span>
                     <span className="w-12 text-right font-mono">{isPlayed(m) ? `${m.scoreA}–${m.scoreB}` : "—"}</span>
-                    {m.motmPlayerId === id && <span title="Man of the match">⭐</span>}
+                    {m.motmId === id && <span title="Man of the match">⭐</span>}
                     {(e.goals ?? 0) > 0 && <span title="goals">⚽{e.goals}</span>}
                     {(e.assists ?? 0) > 0 && <span title="assists">🅰️{e.assists}</span>}
                   </li>

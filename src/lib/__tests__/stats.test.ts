@@ -55,3 +55,20 @@ describe("rating", () => {
     expect(strength(6, 1100, 0)).toBe(6);
   });
 });
+
+import { effectiveMotm, tally } from "../motm";
+
+describe("motm voting", () => {
+  const v = (voterId: number, candidateId: number) => ({ matchId: 1, voterId, candidateId });
+  it("leader is the most voted", () => {
+    expect(tally([v(1, 5), v(2, 5), v(3, 6)]).leader).toBe(5);
+  });
+  it("tie or no votes = no leader", () => {
+    expect(tally([v(1, 5), v(2, 6)]).leader).toBeNull();
+    expect(tally([]).leader).toBeNull();
+  });
+  it("admin pick overrides the vote", () => {
+    expect(effectiveMotm(9, [v(1, 5)])).toBe(9);
+    expect(effectiveMotm(null, [v(1, 5)])).toBe(5);
+  });
+});
