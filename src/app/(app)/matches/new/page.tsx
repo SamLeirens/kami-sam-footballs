@@ -16,7 +16,7 @@ export default async function NewMatchPage({ searchParams }: PageProps<"/matches
   const previous: Record<number, "A" | "B"> = {};
   if (last) for (const e of lineupOf(last.id)) previous[e.playerId] = e.team;
 
-  let preselected = Object.keys(previous).map(Number); // default: whoever played last time
+  let preselected: number[] = []; // default: nobody ticked
   let squadNote: string | undefined;
   if (planned) {
     const lineup = lineupOf(planned.id);
