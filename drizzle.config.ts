@@ -1,9 +1,11 @@
-import "dotenv/config";
+import { config } from "dotenv";
+// `neon deploy` / `neon env pull` write .env.local (or .env); Next.js reads both.
+config({ path: [".env.local", ".env"], quiet: true });
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dialect: "postgresql",
-  dbCredentials: { url: process.env.DATABASE_URL! },
+  dbCredentials: { url: (process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL)! },
 });

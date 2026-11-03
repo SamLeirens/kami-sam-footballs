@@ -1,20 +1,28 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { attachDatabasePool } from "@vercel/functions";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "./schema";
 
-const globalForDb = globalThis as unknown as { sql?: ReturnType<typeof postgres> };
+// node-postgres + attachDatabasePool is Neon's recommended setup on Vercel
+// (Fluid compute): one pool per instance, idle clients closed before the
+// instance suspends. DATABASE_URL is Neon's pooled (-pooler) string.
+const globalForDb = globalThis as unknown as { pool?: Pool };
 
-function client() {
+function createPool() {
   const url = process.env.DATABASE_URL;
-  // postgres.js connects lazily, so a missing URL only fails when a query runs
+  // pg connects lazily, so a missing URL only fails when a query runs
   // (lets `next build` work without a database).
   if (!url) console.warn("DATABASE_URL is not set");
-  // prepare:false keeps it compatible with poolers (Neon/Supabase pooled URLs).
-  return postgres(url ?? "postgres://localhost/missing-database-url", { prepare: false, max: 5 });
+  const pool = new Pool({
+    connectionString: url ?? "postgres://localhost/missing-database-url",
+    max: 5,
+  });
+  attachDatabasePool(pool);
+  return pool;
 }
 
-const sql = globalForDb.sql ?? client();
-if (process.env.NODE_ENV !== "production") globalForDb.sql = sql;
+const pool = globalForDb.pool ?? createPool();
+if (process.env.NODE_ENV !== "production") globalForDb.pool = pool;
 
-export const db = drizzle(sql, { schema });
+export const db = drizzle(pool, { schema });
 export * from "./schema";

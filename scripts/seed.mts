@@ -1,11 +1,13 @@
 // Fills a local database with demo players and matches: `npm run db:seed`
-import "dotenv/config";
+import { config } from "dotenv";
+// `neon deploy` / `neon env pull` write .env.local (or .env); Next.js reads both.
+config({ path: [".env.local", ".env"], quiet: true });
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { matches, matchPlayers, players, ratingHistory, type Position } from "../src/db/schema";
 import { overall } from "../src/lib/rating";
 
-const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
+const sql = postgres((process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL)!, { max: 1 });
 const db = drizzle(sql);
 
 const names: [string, Position][] = [
