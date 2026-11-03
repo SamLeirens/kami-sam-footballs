@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { db, matches, matchPlayers, motmVotes, rsvps } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { todayISO } from "@/lib/data";
+import type { RsvpStatus } from "@/lib/rsvp";
 import { validatePastMatch, type PastMatchInput } from "@/lib/pastMatch";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -53,7 +54,7 @@ export async function planMatch(formData: FormData) {
 }
 
 /** Admin sets someone's reply (e.g. they told you in the group chat). null clears it. */
-export async function setRsvp(matchId: number, playerId: number, status: "in" | "out" | null) {
+export async function setRsvp(matchId: number, playerId: number, status: RsvpStatus | null) {
   await requireAdmin();
   if (status === null) {
     await db.delete(rsvps).where(and(eq(rsvps.matchId, matchId), eq(rsvps.playerId, playerId)));

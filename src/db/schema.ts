@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Position } from "../lib/positions";
+import type { RsvpStatus } from "../lib/rsvp";
 
 export { POSITIONS, type Position } from "../lib/positions";
 
@@ -82,7 +83,7 @@ export const rsvps = pgTable(
     playerId: integer("player_id")
       .notNull()
       .references(() => players.id, { onDelete: "cascade" }),
-    status: text("status").$type<"in" | "out">().notNull(),
+    status: text("status").$type<RsvpStatus>().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.matchId, t.playerId] })],

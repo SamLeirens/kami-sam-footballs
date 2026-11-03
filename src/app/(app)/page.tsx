@@ -2,7 +2,9 @@ import Link from "next/link";
 import { TEAMS } from "@/lib/teams";
 import { Icon, Star } from "@/components/icons";
 import { LeaderTabs, type LeaderBoard } from "@/components/LeaderTabs";
+import { ShareButton } from "@/components/ShareButton";
 import { formatDate } from "@/components/ui";
+import { inviteText, reminderText } from "@/lib/rsvp";
 import { loadClub, type PlayerRow } from "@/lib/data";
 import { isPlayed } from "@/lib/stats";
 
@@ -57,6 +59,11 @@ export default async function Dashboard() {
   const nextCount = next ? lineup(next.id).length : 0;
   const nextIn = next ? rsvps.filter((r) => r.matchId === next.id && r.status === "in").length : 0;
   const asking = !!next && nextCount === 0; // planned, waiting for replies
+  const nextReplies = next ? rsvps.filter((r) => r.matchId === next.id) : [];
+  const nextMaybe = nextReplies.filter((r) => r.status === "maybe").length;
+  const replied = new Set(nextReplies.map((r) => r.playerId));
+  const waiting = players.filter((p) => p.active && !p.isGuest && !replied.has(p.id)).map((p) => p.name);
+  const remind = nextReplies.length > 0 && waiting.length > 0;
   const lastLineup = last ? lineup(last.id) : [];
   const scorers = lastLineup.filter((e) => (e.goals ?? 0) > 0).sort((a, b) => (b.goals ?? 0) - (a.goals ?? 0));
   const winner = last ? (last.scoreA > last.scoreB ? "A" : last.scoreB > last.scoreA ? "B" : null) : null;
@@ -68,20 +75,38 @@ export default async function Dashboard() {
           <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
           {next && (
             <span>
-              {asking ? `${nextIn} said they're in` : `${nextCount} in · ${Math.floor(nextCount / 2)} v ${Math.ceil(nextCount / 2)}`}
+              {asking ? `${nextIn} in${nextMaybe ? ` · ${nextMaybe} maybe` : ""} · ${waiting.length} no reply` : `${nextCount} in · ${Math.floor(nextCount / 2)} v ${Math.ceil(nextCount / 2)}`}
             </span>
           )}
         </div>
         <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
           {next ? formatDate(next.date, { short: true }) : "Pick teams"}
         </div>
-        <Link
-          href={next ? (asking ? `/matches/new?match=${next.id}` : `/matches/${next.id}`) : "/matches"}
-          className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
-        >
-          {next ? (asking ? `Pick teams from ${nextIn} players` : "Open match") : "Plan a match"}
-          <Icon name="arrowRight" size={20} />
-        </Link>
+        {asking && next.shareToken ? (
+          <div className="grid grid-cols-2 gap-2">
+            <ShareButton
+              what={remind ? "reminder" : "invite"}
+              path={`/m/${next.shareToken}`}
+              template={remind ? reminderText(next.date, "{url}", nextIn, waiting) : inviteText(next.date, "{url}")}
+              className="min-h-12 rounded-[14px] border border-ground/25 px-3 text-[15px] font-semibold"
+            />
+            <Link
+              href={`/matches/${next.id}`}
+              className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
+            >
+              Replies
+              <Icon name="arrowRight" size={20} />
+            </Link>
+          </div>
+        ) : (
+          <Link
+            href={next ? (asking ? `/matches/new?match=${next.id}` : `/matches/${next.id}`) : "/matches"}
+            className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
+          >
+            {next ? (asking ? `Pick teams from ${nextIn} players` : "Open match") : "Plan a match"}
+            <Icon name="arrowRight" size={20} />
+          </Link>
+        )}
       </section>
 
       {last ? (

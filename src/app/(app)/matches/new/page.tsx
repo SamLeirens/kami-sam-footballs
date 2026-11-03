@@ -27,7 +27,9 @@ export default async function NewMatchPage({ searchParams }: PageProps<"/matches
     } else {
       preselected = replies.filter((r) => r.status === "in").map((r) => r.playerId);
       const outs = replies.filter((r) => r.status === "out").length;
+      const maybes = replies.filter((r) => r.status === "maybe").map((r) => players.find((p) => p.id === r.playerId)?.name).filter(Boolean);
       squadNote = `Ticked: the ${preselected.length} who said they're in${outs ? ` (${outs} said they're out)` : ""}.`;
+      if (maybes.length) squadNote += ` Maybe: ${maybes.join(", ")}.`;
     }
   }
 

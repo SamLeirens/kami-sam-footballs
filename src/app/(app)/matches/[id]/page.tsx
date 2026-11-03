@@ -4,11 +4,13 @@ import { TEAMS } from "@/lib/teams";
 import { Star } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { ShareButton } from "@/components/ShareButton";
 import { ShareLink } from "@/components/ShareLink";
 import { Icon } from "@/components/icons";
 import { tally } from "@/lib/motm";
 import { formatDate, PosBadge } from "@/components/ui";
 import { loadClub, type PlayerRow } from "@/lib/data";
+import { inviteText, reminderText, RSVP_STATUSES, type RsvpStatus } from "@/lib/rsvp";
 
 type Club = Awaited<ReturnType<typeof loadClub>>;
 import { isPlayed } from "@/lib/stats";
@@ -252,6 +254,8 @@ function PlannedMatch({ club, match }: { club: Club; match: Club["matches"][numb
     .sort((a, b) => order(a.status) - order(b.status) || a.name.localeCompare(b.name));
   const inCount = people.filter((p) => p.status === "in").length;
   const outCount = people.filter((p) => p.status === "out").length;
+  const maybeCount = people.filter((p) => p.status === "maybe").length;
+  const waiting = people.filter((p) => p.status === null).map((p) => p.name);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -265,7 +269,7 @@ function PlannedMatch({ club, match }: { club: Club; match: Club["matches"][numb
         <div className="flex items-baseline justify-between text-xs font-semibold">
           <span className="tracking-widest uppercase">Who&apos;s in</span>
           <span>
-            {outCount} out · {people.length - inCount - outCount} no reply
+            {maybeCount} maybe · {outCount} out · {waiting.length} no reply
           </span>
         </div>
         <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
@@ -283,10 +287,26 @@ function PlannedMatch({ club, match }: { club: Club; match: Club["matches"][numb
       <section className="card space-y-3">
         <div>
           <h2 className="h2">Ask the group</h2>
-          <p className="text-sm text-muted">Players open this link, pick their name and tap in or out. No login needed.</p>
+          <p className="text-sm text-muted">
+            Players open the link, pick their name and tap in, maybe or out. No login needed. On your phone, Share opens the
+            share sheet: pick Messenger, then the team chat.
+          </p>
         </div>
         {match.shareToken ? (
-          <ShareLink path={`/m/${match.shareToken}`} />
+          <>
+            <div className="flex flex-wrap gap-2">
+              <ShareButton what="invite" path={`/m/${match.shareToken}`} template={inviteText(match.date, "{url}")} className="btn flex-1" />
+              {waiting.length > 0 && (
+                <ShareButton
+                  what="reminder"
+                  path={`/m/${match.shareToken}`}
+                  template={reminderText(match.date, "{url}", inCount, waiting)}
+                  className="btn-secondary flex-1"
+                />
+              )}
+            </div>
+            <ShareLink path={`/m/${match.shareToken}`} />
+          </>
         ) : (
           <form action={createShareLink.bind(null, match.id)}>
             <button className="btn">Create link</button>
@@ -308,8 +328,9 @@ function PlannedMatch({ club, match }: { club: Club; match: Club["matches"][numb
                 {p.isGuest && <span className="ml-1.5 text-xs text-muted">guest</span>}
               </span>
               <form className="flex gap-1">
-                <RsvpButton on={p.status === "in"} label="In" tone="in" action={setRsvp.bind(null, match.id, p.id, p.status === "in" ? null : "in")} />
-                <RsvpButton on={p.status === "out"} label="Out" tone="out" action={setRsvp.bind(null, match.id, p.id, p.status === "out" ? null : "out")} />
+                {RSVP_STATUSES.map((st) => (
+                  <RsvpButton key={st} on={p.status === st} tone={st} action={setRsvp.bind(null, match.id, p.id, p.status === st ? null : st)} />
+                ))}
               </form>
             </li>
           ))}
@@ -325,10 +346,18 @@ function PlannedMatch({ club, match }: { club: Club; match: Club["matches"][numb
   );
 }
 
-const order = (s: "in" | "out" | null) => (s === "in" ? 0 : s === null ? 1 : 2);
+const order = (s: RsvpStatus | null) => (s === "in" ? 0 : s === "maybe" ? 1 : s === null ? 2 : 3);
 
-function RsvpButton({ on, label, tone, action }: { on: boolean; label: string; tone: "in" | "out"; action: () => Promise<void> }) {
-  const onStyle = tone === "in" ? "bg-accent text-ground border-accent" : "bg-danger-dim text-danger border-danger/60";
+const RSVP_ON: Record<RsvpStatus, string> = {
+  in: "bg-accent text-ground border-accent",
+  maybe: "bg-warn-dim text-warn border-warn/60",
+  out: "bg-danger-dim text-danger border-danger/60",
+};
+const RSVP_LABEL: Record<RsvpStatus, string> = { in: "In", maybe: "Maybe", out: "Out" };
+
+function RsvpButton({ on, tone, action }: { on: boolean; tone: RsvpStatus; action: () => Promise<void> }) {
+  const onStyle = RSVP_ON[tone];
+  const label = RSVP_LABEL[tone];
   return (
     <button
       formAction={action}

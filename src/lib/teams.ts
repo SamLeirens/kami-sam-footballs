@@ -7,14 +7,19 @@ export const TEAMS = {
 export type TeamKey = keyof typeof TEAMS;
 export const other = (t: TeamKey): TeamKey => (t === "A" ? "B" : "A");
 
-/** Dutch message listing both teams, ready to paste in the group chat. */
-export function teamsText(date: string, blue: string[], orange: string[]) {
-  const day = new Date(date + "T12:00:00Z").toLocaleDateString("nl-BE", {
+/** "donderdag 5 november", for messages in the group chat. */
+export function dayNl(date: string) {
+  return new Date(date + "T12:00:00Z").toLocaleDateString("nl-BE", {
     weekday: "long",
     day: "numeric",
     month: "long",
     timeZone: "UTC",
   });
+}
+
+/** Dutch message listing both teams, ready to paste in the group chat. */
+export function teamsText(date: string, blue: string[], orange: string[]) {
+  const day = dayNl(date);
   const block = (t: TeamKey, names: string[]) =>
     `${TEAMS[t].emoji} *${TEAMS[t].nl}* (${names.length})\n${names.map((n) => `- ${n}`).join("\n")}`;
   return `⚽ Ploegen voor ${day}\n\n${block("A", blue)}\n\n${block("B", orange)}`;
