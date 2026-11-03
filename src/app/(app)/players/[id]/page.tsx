@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { TEAMS } from "@/lib/teams";
 import { Star } from "@/components/icons";
 import Link from "next/link";
@@ -7,13 +7,18 @@ import { db, ratingHistory } from "@/db";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { PlayerForm } from "@/components/PlayerForm";
 import { Form, formatDate, PosBadge, ResultChip, Stat } from "@/components/ui";
-import { loadClub } from "@/lib/data";
+import { SeasonPicker } from "@/components/SeasonPicker";
+import { inRange } from "@/lib/seasons";
+import { loadClub, todayISO } from "@/lib/data";
+import { RatingChart, type RatingPoint } from "@/components/RatingChart";
 import { isPlayed, resultFor, winPct, type Record3 } from "@/lib/stats";
 import { deletePlayer, updatePlayer } from "../actions";
 
-export default async function PlayerPage({ params }: PageProps<"/players/[id]">) {
+export default async function PlayerPage({ params, searchParams }: PageProps<"/players/[id]">) {
   const id = Number((await params).id);
-  const club = await loadClub();
+  const sp = await searchParams;
+  const club = await loadClub({ season: typeof sp.season === "string" ? sp.season : undefined });
+  const season = club.season;
   const p = club.players.find((x) => x.id === id);
   if (!p) notFound();
 
@@ -21,17 +26,20 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
     .select()
     .from(ratingHistory)
     .where(eq(ratingHistory.playerId, id))
-    .orderBy(desc(ratingHistory.createdAt))
-    .limit(10);
+    .orderBy(asc(ratingHistory.createdAt));
+  // one point per day: the last rating set that day
+  const byDay = new Map<string, number>();
+  for (const h of history) byDay.set(h.createdAt.toISOString().slice(0, 10), h.overall);
+  const ratingPoints: RatingPoint[] = [...byDay].map(([date, value]) => ({ date, value }));
 
   const myEntries = new Map(club.entries.filter((e) => e.playerId === id).map((e) => [e.matchId, e]));
-  const myMatches = club.matches.filter((m) => myEntries.has(m.id));
+  const myMatches = club.matches.filter((m) => myEntries.has(m.id) && (!season || inRange(m.date, season)));
   const s = p.stats;
 
   // Win % with / against each other player
   const MIN = 3;
   const mates = [...(club.pairs.get(id) ?? new Map()).entries()]
-    .map(([otherId, r]) => ({ other: club.players.find((x) => x.id === otherId)!, ...r }))
+    .map(([otherId, r]) => ({ other: club.members.find((x) => x.id === otherId)!, ...r }))
     .filter((r) => r.other)
     .sort(
       (a, b) =>
@@ -52,8 +60,11 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="h1">{p.name}</h1>
         <PosBadge position={p.position} />
-        {!p.active && <span className="rounded bg-surface-2 px-2 py-0.5 text-xs">inactive</span>}
+        {p.isGuest && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-soft">Guest</span>}
+        {!p.active && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted">inactive</span>}
       </div>
+
+      <SeasonPicker seasons={club.seasons} selected={season} href={(se) => `/players/${id}?season=${se}`} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Rating" value={p.overall.toFixed(1)} sub={`Strength ${p.strength.toFixed(1)} · Elo ${s.elo}`} />
@@ -114,7 +125,7 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
-        <section className="card">
+        <section className="card min-w-0">
           <h2 className="h2 mb-3">Matches</h2>
           {myMatches.length === 0 ? (
             <p className="text-sm text-muted">No matches yet.</p>
@@ -137,16 +148,10 @@ export default async function PlayerPage({ params }: PageProps<"/players/[id]">)
             </ul>
           )}
         </section>
-        <section className="card">
-          <h2 className="h2 mb-3">Rating history</h2>
-          <ul className="divide-y divide-line-soft text-sm">
-            {history.map((h) => (
-              <li key={h.id} className="flex justify-between py-2">
-                <span className="text-muted">{h.createdAt.toISOString().slice(0, 10)}</span>
-                <span className="font-semibold tabular-nums">{h.overall.toFixed(1)}</span>
-              </li>
-            ))}
-          </ul>
+        <section className="card min-w-0">
+          <h2 className="h2">Rating history</h2>
+          <p className="mb-3 text-xs text-muted">Your rating (1–10) each time you changed it</p>
+          <RatingChart points={ratingPoints} today={todayISO()} />
         </section>
       </div>
 

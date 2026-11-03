@@ -2,16 +2,34 @@ import Link from "next/link";
 import { loadClub } from "@/lib/data";
 import { TeamPicker } from "./TeamPicker";
 
-export default async function NewMatchPage() {
-  const { players, matches, entries } = await loadClub();
+export default async function NewMatchPage({ searchParams }: PageProps<"/matches/new">) {
+  const sp = await searchParams;
+  const { players, matches, entries, rsvps } = await loadClub();
   const active = players.filter((p) => p.active);
 
-  // Most recent match's teams, so the generator can avoid repeating them.
-  const last = matches[0];
+  // Picking teams for a planned match (?match=ID)?
+  const planned = sp.match ? matches.find((m) => m.id === Number(sp.match)) : undefined;
+  const lineupOf = (id: number) => entries.filter((e) => e.matchId === id);
+
+  // Most recent other match with teams, so the generator can avoid repeating them.
+  const last = matches.find((m) => m.id !== planned?.id && lineupOf(m.id).length > 0);
   const previous: Record<number, "A" | "B"> = {};
-  if (last) for (const e of entries) if (e.matchId === last.id) previous[e.playerId] = e.team;
-  // Pre-tick whoever played last time.
-  const lastPlayers = Object.keys(previous).map(Number);
+  if (last) for (const e of lineupOf(last.id)) previous[e.playerId] = e.team;
+
+  let preselected = Object.keys(previous).map(Number); // default: whoever played last time
+  let squadNote: string | undefined;
+  if (planned) {
+    const lineup = lineupOf(planned.id);
+    const replies = rsvps.filter((r) => r.matchId === planned.id);
+    if (lineup.length) {
+      preselected = lineup.map((e) => e.playerId);
+      squadNote = "Ticked: the current line-up.";
+    } else {
+      preselected = replies.filter((r) => r.status === "in").map((r) => r.playerId);
+      const outs = replies.filter((r) => r.status === "out").length;
+      squadNote = `Ticked: the ${preselected.length} who said they're in${outs ? ` (${outs} said they're out)` : ""}.`;
+    }
+  }
 
   if (active.length < 2) {
     return (
@@ -33,9 +51,13 @@ export default async function NewMatchPage() {
         strength: p.strength,
         attack: p.attack,
         defence: p.defence,
+        isGuest: p.isGuest,
       }))}
       previous={previous}
-      preselected={lastPlayers}
+      preselected={preselected}
+      matchId={planned?.id}
+      initialDate={planned?.date}
+      squadNote={squadNote}
     />
   );
 }

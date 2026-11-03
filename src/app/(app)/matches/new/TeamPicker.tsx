@@ -6,10 +6,12 @@ import { PosBadge, formatDate } from "@/components/ui";
 import { balanceTeams, teamTotals, type TeamOption } from "@/lib/balance";
 import type { Position } from "@/lib/positions";
 import { createMatch } from "../actions";
+import { addGuest } from "../../players/actions";
+import { POSITIONS } from "@/lib/positions";
 import { CopyTeamsButton } from "@/components/CopyTeamsButton";
 import { TEAMS, other } from "@/lib/teams";
 
-type P = { id: number; name: string; position: Position; strength: number; attack: number; defence: number };
+type P = { id: number; name: string; position: Position; strength: number; attack: number; defence: number; isGuest?: boolean };
 
 function today() {
   const d = new Date();
@@ -21,17 +23,29 @@ function verdict(diff: number) {
 }
 
 export function TeamPicker({
-  players,
+  players: initialPlayers,
   previous,
   preselected,
+  matchId,
+  initialDate,
+  squadNote,
 }: {
   players: P[];
   previous: Record<number, "A" | "B">;
   preselected: number[];
+  /** set when picking teams for an already planned match */
+  matchId?: number;
+  initialDate?: string;
+  squadNote?: string;
 }) {
-  const byId = useMemo(() => new Set(players.map((p) => p.id)), [players]);
+  const [players, setPlayers] = useState(initialPlayers);
+  const byId = useMemo(() => new Set(initialPlayers.map((p) => p.id)), [initialPlayers]);
   const [selected, setSelected] = useState<Set<number>>(() => new Set(preselected.filter((id) => byId.has(id))));
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(() => initialDate ?? today());
+  const [guestOpen, setGuestOpen] = useState(false);
+  const [guest, setGuest] = useState({ name: "", level: 5, position: "MID" as Position });
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const [addingGuest, startAddingGuest] = useTransition();
   const [options, setOptions] = useState<TeamOption[]>([]);
   const [optionIdx, setOptionIdx] = useState(0);
   const [teamA, setTeamA] = useState<number[] | null>(null); // current (possibly hand-edited) split
@@ -41,6 +55,21 @@ export function TeamPicker({
   const [saving, startSaving] = useTransition();
 
   const chosen = players.filter((p) => selected.has(p.id));
+  const members = players.filter((p) => !p.isGuest);
+  const guests = players.filter((p) => p.isGuest);
+
+  function submitGuest() {
+    startAddingGuest(async () => {
+      const res = await addGuest(guest);
+      if ("error" in res) return setGuestError(res.error);
+      setPlayers((ps) => [...ps, res.guest]);
+      setSelected((s) => new Set(s).add(res.guest.id));
+      resetTeams();
+      setGuest({ name: "", level: 5, position: "MID" });
+      setGuestError(null);
+      setGuestOpen(false);
+    });
+  }
   const n = chosen.length;
 
   function resetTeams() {
@@ -111,7 +140,7 @@ export function TeamPicker({
   function save() {
     if (!split) return;
     startSaving(async () => {
-      const res = await createMatch({ date, teamA: split.a.map((p) => p.id), teamB: split.b.map((p) => p.id) });
+      const res = await createMatch({ matchId, date, teamA: split.a.map((p) => p.id), teamB: split.b.map((p) => p.id) });
       if (res?.error) setError(res.error);
     });
   }
@@ -139,7 +168,7 @@ export function TeamPicker({
               <label className="label" htmlFor="date">Date</label>
               <input id="date" type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
-            <button type="button" className="btn-secondary" onClick={() => { setSelected(new Set(players.map((p) => p.id))); resetTeams(); }}>
+            <button type="button" className="btn-secondary" onClick={() => { setSelected(new Set(members.map((p) => p.id))); resetTeams(); }}>
               All
             </button>
             <button type="button" className="btn-secondary" onClick={() => { setSelected(new Set()); resetTeams(); }}>
@@ -151,33 +180,69 @@ export function TeamPicker({
             <div className="label">
               Who&apos;s playing? {n >= 2 && <span className="text-accent">· {Math.floor(n / 2)} v {Math.ceil(n / 2)}</span>}
             </div>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {players.map((p) => {
-                const on = selected.has(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => toggle(p.id)}
-                    className={`flex min-h-11 items-center gap-2 rounded-xl border px-2.5 text-left text-sm transition ${
-                      on ? "border-accent/60 bg-accent-dim font-semibold text-fg" : "border-line bg-surface-2 text-muted"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
-                        on ? "bg-accent text-ground" : "border border-subtle"
-                      }`}
-                    >
-                      {on && "✓"}
-                    </span>
-                    <span className="flex-1 truncate">{p.name}</span>
-                    <PosBadge position={p.position} />
-                  </button>
-                );
-              })}
-            </div>
+            {squadNote && <p className="mb-2 text-xs text-muted">{squadNote}</p>}
+            <SquadGrid players={members} selected={selected} toggle={toggle} />
+            {guests.length > 0 && (
+              <>
+                <div className="label mt-3">Guests</div>
+                <SquadGrid players={guests} selected={selected} toggle={toggle} />
+              </>
+            )}
           </div>
+
+          {guestOpen ? (
+            <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-36 flex-[2]">
+                  <label className="label" htmlFor="guest-name">Guest name</label>
+                  <input
+                    id="guest-name"
+                    className="input bg-surface"
+                    value={guest.name}
+                    autoFocus
+                    onChange={(e) => setGuest({ ...guest, name: e.target.value })}
+                  />
+                </div>
+                <div className="min-w-20 flex-1">
+                  <label className="label" htmlFor="guest-level">Level</label>
+                  <select
+                    id="guest-level"
+                    className="input bg-surface"
+                    value={guest.level}
+                    onChange={(e) => setGuest({ ...guest, level: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="min-w-20 flex-1">
+                  <label className="label" htmlFor="guest-pos">Position</label>
+                  <select
+                    id="guest-pos"
+                    className="input bg-surface"
+                    value={guest.position}
+                    onChange={(e) => setGuest({ ...guest, position: e.target.value as Position })}
+                  >
+                    {POSITIONS.map((pos) => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {guestError && <p className="text-sm text-danger">{guestError}</p>}
+              <div className="flex gap-2">
+                <button type="button" className="btn" disabled={addingGuest || !guest.name.trim()} onClick={submitGuest}>
+                  {addingGuest ? "Adding…" : "Add guest"}
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setGuestOpen(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="text-sm font-semibold text-accent" onClick={() => setGuestOpen(true)}>
+              + Add a guest
+            </button>
+          )}
 
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" className="btn flex-1 sm:flex-none" disabled={n < 4} onClick={generate}>
@@ -304,6 +369,37 @@ export function TeamPicker({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function SquadGrid({ players, selected, toggle }: { players: P[]; selected: Set<number>; toggle: (id: number) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+      {players.map((p) => {
+        const on = selected.has(p.id);
+        return (
+          <button
+            key={p.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => toggle(p.id)}
+            className={`flex min-h-11 items-center gap-2 rounded-xl border px-2.5 text-left text-sm transition ${
+              on ? "border-accent/60 bg-accent-dim font-semibold text-fg" : "border-line bg-surface-2 text-muted"
+            }`}
+          >
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
+                on ? "bg-accent text-ground" : "border border-subtle"
+              }`}
+            >
+              {on && "✓"}
+            </span>
+            <span className="flex-1 truncate">{p.name}</span>
+            <PosBadge position={p.position} />
+          </button>
+        );
+      })}
     </div>
   );
 }

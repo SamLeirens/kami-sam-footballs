@@ -19,6 +19,8 @@ export const players = pgTable("players", {
   name: text("name").notNull(),
   position: text("position").$type<Position>().notNull().default("MID"),
   active: boolean("active").notNull().default(true),
+  // Guests play occasionally: they count in match results but are left out of club stats.
+  isGuest: boolean("is_guest").notNull().default(false),
   // Current ratings, 1-10. History is kept in rating_history.
   attack: integer("attack").notNull().default(5),
   defence: integer("defence").notNull().default(5),
@@ -70,6 +72,29 @@ export const matchPlayers = pgTable(
   (t) => [primaryKey({ columns: [t.matchId, t.playerId] })],
 );
 
+// "Are you playing?" replies before teams are picked. One per player per match.
+export const rsvps = pgTable(
+  "rsvps",
+  {
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    status: text("status").$type<"in" | "out">().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.matchId, t.playerId] })],
+);
+
+// A season runs from its start date until the next season starts.
+export const seasons = pgTable("seasons", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  startDate: date("start_date").notNull().unique(),
+});
+
 // One MOTM vote per player per match (enforced by the primary key).
 export const motmVotes = pgTable(
   "motm_votes",
@@ -98,3 +123,5 @@ export type Player = typeof players.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type MatchPlayer = typeof matchPlayers.$inferSelect;
 export type MotmVote = typeof motmVotes.$inferSelect;
+export type Rsvp = typeof rsvps.$inferSelect;
+export type Season = typeof seasons.$inferSelect;

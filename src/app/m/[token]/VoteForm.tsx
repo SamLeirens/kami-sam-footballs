@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { TEAMS } from "@/lib/teams";
 import { castVote, type VoteState } from "./actions";
 
@@ -12,7 +12,15 @@ export function VoteForm({ token, players }: { token: string; players: P[] }) {
   const [candidate, setCandidate] = useState("");
 
   return (
-    <form action={action} className="space-y-3">
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        // Submit without React's automatic form reset, which would blank the selected name.
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+        startTransition(() => action(fd));
+      }}
+    >
       <div>
         <label className="label" htmlFor="voter">1. Who are you?</label>
         <select id="voter" name="voter" className="input" value={voter} onChange={(e) => { setVoter(e.target.value); if (e.target.value === candidate) setCandidate(""); }}>

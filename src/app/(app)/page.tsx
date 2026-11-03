@@ -9,7 +9,7 @@ import { isPlayed } from "@/lib/stats";
 const MIN_GAMES = 3;
 
 export default async function Dashboard() {
-  const { players, matches, entries } = await loadClub();
+  const { players, members, matches, entries, rsvps, season } = await loadClub();
   const names = new Map(players.map((p) => [p.id, p.name]));
   const playedMatches = matches.filter(isPlayed);
   const next = matches.filter((m) => !isPlayed(m)).at(-1); // newest first → earliest planned
@@ -36,7 +36,7 @@ export default async function Dashboard() {
       label: "Win %",
       empty: `Players need ${MIN_GAMES}+ games to appear here.`,
       rows: board(
-        players.filter((p) => p.stats.played >= MIN_GAMES).sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played),
+        members.filter((p) => p.stats.played >= MIN_GAMES).sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played),
         (p) => `${Math.round(p.stats.winPct)}%`,
       ),
     },
@@ -44,17 +44,19 @@ export default async function Dashboard() {
       key: "goals",
       label: "Goals",
       empty: "No goals recorded yet.",
-      rows: board(players.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals), (p) => String(p.stats.goals)),
+      rows: board(members.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals), (p) => String(p.stats.goals)),
     },
     {
       key: "motm",
       label: "MOTM",
       empty: "No man of the match awards yet.",
-      rows: board(players.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm), (p) => `${p.stats.motm}×`),
+      rows: board(members.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm), (p) => `${p.stats.motm}×`),
     },
   ];
 
   const nextCount = next ? lineup(next.id).length : 0;
+  const nextIn = next ? rsvps.filter((r) => r.matchId === next.id && r.status === "in").length : 0;
+  const asking = !!next && nextCount === 0; // planned, waiting for replies
   const lastLineup = last ? lineup(last.id) : [];
   const scorers = lastLineup.filter((e) => (e.goals ?? 0) > 0).sort((a, b) => (b.goals ?? 0) - (a.goals ?? 0));
   const winner = last ? (last.scoreA > last.scoreB ? "A" : last.scoreB > last.scoreA ? "B" : null) : null;
@@ -66,7 +68,7 @@ export default async function Dashboard() {
           <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
           {next && (
             <span>
-              {nextCount} in · {Math.floor(nextCount / 2)} v {Math.ceil(nextCount / 2)}
+              {asking ? `${nextIn} said they're in` : `${nextCount} in · ${Math.floor(nextCount / 2)} v ${Math.ceil(nextCount / 2)}`}
             </span>
           )}
         </div>
@@ -74,10 +76,10 @@ export default async function Dashboard() {
           {next ? formatDate(next.date, { short: true }) : "Pick teams"}
         </div>
         <Link
-          href={next ? `/matches/${next.id}` : "/matches/new"}
+          href={next ? (asking ? `/matches/new?match=${next.id}` : `/matches/${next.id}`) : "/matches"}
           className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
         >
-          {next ? "Open match" : "Pick fair teams"}
+          {next ? (asking ? `Pick teams from ${nextIn} players` : "Open match") : "Plan a match"}
           <Icon name="arrowRight" size={20} />
         </Link>
       </section>
@@ -126,7 +128,7 @@ export default async function Dashboard() {
       )}
 
       <div className="md:col-span-2">
-        <LeaderTabs boards={boards} />
+        <LeaderTabs boards={boards} caption={season ? `Season ${season.name}` : undefined} />
       </div>
     </div>
   );

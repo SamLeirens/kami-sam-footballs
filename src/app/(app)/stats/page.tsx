@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SeasonPicker } from "@/components/SeasonPicker";
 import { Form, PosBadge } from "@/components/ui";
 import { loadClub, type PlayerRow } from "@/lib/data";
 import { bestDuos } from "@/lib/stats";
@@ -23,20 +24,25 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
   const min = Math.max(0, Number(sp.min ?? 1) || 0);
   const col = COLUMNS.find((c) => c.key === sort)!;
 
-  const { players, pairs } = await loadClub();
-  const names = new Map(players.map((p) => [p.id, p.name]));
+  const seasonParam = typeof sp.season === "string" ? sp.season : undefined;
+  const { members, pairs, seasons, season } = await loadClub({ season: seasonParam });
+  const names = new Map(members.map((p) => [p.id, p.name]));
   const duoMin = Math.max(3, min);
-  const duos = bestDuos(pairs, duoMin);
-  const rows = players
+  const duos = bestDuos(pairs, duoMin).filter((d) => names.has(d.a) && names.has(d.b));
+  const rows = members
     .filter((p) => p.stats.played >= min)
     .sort((a, b) => col.get(b) - col.get(a) || b.stats.played - a.stats.played);
 
-  const href = (s: string, m = min) => `/stats?sort=${s}&min=${m}`;
+  const seasonKey = season ? String(season.id) : "all";
+  const href = (s: string, m = min, se = seasonKey) => `/stats?sort=${s}&min=${m}&season=${se}`;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="h1">Stats</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className="h1">Stats</h1>
+          <span className="text-xs text-muted">{season ? `Season ${season.name}` : "All-time"}</span>
+        </div>
         <div className="flex items-center gap-1 text-sm">
           <span className="text-muted">Min games:</span>
           {[1, 3, 5, 10].map((m) => (
@@ -46,6 +52,8 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
           ))}
         </div>
       </div>
+
+      <SeasonPicker seasons={seasons} selected={season} href={(se) => href(sort, min, se)} />
 
       {rows.length === 0 ? (
         <p className="card text-sm text-muted">No stats yet — enter some match results.</p>

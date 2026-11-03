@@ -7,8 +7,11 @@ import { formatDate } from "@/components/ui";
 import { loadClub } from "@/lib/data";
 import { tally } from "@/lib/motm";
 import { isPlayed } from "@/lib/stats";
-import { voteCookie } from "./vote-cookie";
+import { rsvpCookie, voteCookie } from "./vote-cookie";
+import { RsvpForm } from "./RsvpForm";
 import { VoteForm } from "./VoteForm";
+
+type Club = Awaited<ReturnType<typeof loadClub>>;
 
 async function load(token: string) {
   const club = await loadClub();
@@ -23,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[token]">): Pro
   const { match } = data;
   const title = isPlayed(match)
     ? `${TEAMS.A.name} ${match.scoreA}–${match.scoreB} ${TEAMS.B.name} · ${formatDate(match.date)}`
-    : `Teams for ${formatDate(match.date)}`;
+    : `Are you playing? ${formatDate(match.date)}`;
   return { title, description: isPlayed(match) ? "Result, stats and man of the match vote" : "Kami Football line-ups" };
 }
 
@@ -32,6 +35,11 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
   const data = await load(token);
   if (!data) notFound();
   const { club, match } = data;
+  const hasLineup = club.entries.some((e) => e.matchId === match.id);
+  if (!isPlayed(match) && !hasLineup) {
+    const me = Number((await cookies()).get(rsvpCookie(match.id))?.value) || null;
+    return <Availability token={token} club={club} match={match} me={me} />;
+  }
 
   // Only names and match numbers are shown here — never ratings.
   const names = new Map(club.players.map((p) => [p.id, p.name]));
@@ -54,11 +62,11 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
   const assisters = [...lineup].filter((e) => (e.assists ?? 0) > 0).sort((a, b) => (b.assists ?? 0) - (a.assists ?? 0));
 
   // Club leaders for a bit of context
-  const qualified = club.players.filter((p) => p.stats.played >= 3);
+  const qualified = club.members.filter((p) => p.stats.played >= 3);
   const leaders = [
     { title: "Win %", rows: [...qualified].sort((a, b) => b.stats.winPct - a.stats.winPct).slice(0, 3).map((p) => [p.name, `${p.stats.winPct}%`]) },
-    { title: "Goals", rows: club.players.filter((p) => p.stats.goals).sort((a, b) => b.stats.goals - a.stats.goals).slice(0, 3).map((p) => [p.name, p.stats.goals]) },
-    { title: "MOTM", rows: club.players.filter((p) => p.stats.motm).sort((a, b) => b.stats.motm - a.stats.motm).slice(0, 3).map((p) => [p.name, `${p.stats.motm}×`]) },
+    { title: "Goals", rows: club.members.filter((p) => p.stats.goals).sort((a, b) => b.stats.goals - a.stats.goals).slice(0, 3).map((p) => [p.name, p.stats.goals]) },
+    { title: "MOTM", rows: club.members.filter((p) => p.stats.motm).sort((a, b) => b.stats.motm - a.stats.motm).slice(0, 3).map((p) => [p.name, `${p.stats.motm}×`]) },
   ].filter((l) => l.rows.length);
 
   return (
@@ -174,7 +182,7 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
 
       {played && leaders.length > 0 && (
         <section className="card">
-          <h2 className="h2 mb-3">Club leaders</h2>
+          <h2 className="h2 mb-3">Club leaders{club.season ? ` · ${club.season.name}` : ""}</h2>
           <div className="grid grid-cols-3 gap-3 text-sm">
             {leaders.map((l) => (
               <div key={l.title}>
@@ -193,5 +201,54 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
         </section>
       )}
     </main>
+  );
+}
+
+/** Before teams are picked: players say whether they're in. */
+function Availability({ token, club, match, me }: { token: string; club: Club; match: Club["matches"][number]; me: number | null }) {
+  const replies = new Map(club.rsvps.filter((r) => r.matchId === match.id).map((r) => [r.playerId, r.status]));
+  // Active members, plus any guest who already replied
+  const people = club.players
+    .filter((p) => p.active && (!p.isGuest || replies.has(p.id)))
+    .map((p) => ({ id: p.id, name: p.name, status: replies.get(p.id) ?? null }));
+  const inList = people.filter((p) => p.status === "in");
+  const outList = people.filter((p) => p.status === "out");
+  const waiting = people.filter((p) => p.status === null);
+
+  return (
+    <main className="mx-auto w-full max-w-xl flex-1 space-y-4 px-4 py-6">
+      <div className="font-display text-2xl leading-none font-extrabold tracking-wider">KAMI FC</div>
+
+      <section className="flex flex-col gap-2 rounded-[20px] bg-accent p-[18px] text-ground">
+        <span className="text-xs font-semibold tracking-widest uppercase">Are you playing?</span>
+        <span className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">{formatDate(match.date, { short: true })}</span>
+        <span className="text-sm font-semibold">
+          {inList.length} in{inList.length >= 2 ? ` · ${Math.floor(inList.length / 2)} v ${Math.ceil(inList.length / 2)}` : ""}
+        </span>
+      </section>
+
+      <section className="card">
+        <RsvpForm token={token} players={people} me={me} />
+      </section>
+
+      <section className="card space-y-3 text-sm">
+        <ReplyList title="In" names={inList.map((p) => p.name)} className="text-accent" />
+        <ReplyList title="Out" names={outList.map((p) => p.name)} className="text-danger" />
+        <ReplyList title="No reply yet" names={waiting.map((p) => p.name)} className="text-muted" />
+      </section>
+      <p className="text-center text-xs text-muted">Teams get picked once enough people are in. Everyone can see the replies.</p>
+    </main>
+  );
+}
+
+function ReplyList({ title, names, className }: { title: string; names: string[]; className: string }) {
+  if (!names.length) return null;
+  return (
+    <div>
+      <div className={`mb-1 text-xs font-semibold tracking-widest uppercase ${className}`}>
+        {title} · {names.length}
+      </div>
+      <p className="text-soft">{names.join(", ")}</p>
+    </div>
   );
 }
