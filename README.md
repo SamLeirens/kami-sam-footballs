@@ -6,6 +6,12 @@ Web app for running our weekly football: rate players, generate fair teams, reco
 
 - **Teams are Blue and Orange**, the colours of our two shirts (stored as A/B in the database; names live in `src/lib/teams.ts`).
 - **Players**: rate each player 1–10 on attack, defence, passing, fitness and goalkeeping, plus a main position (GK/DEF/MID/ATT). Rating history is kept.
+- **Who's coming?** (`/attendance`): create a poll for the next game day and share it in the Messenger chat.
+  - **Share invite** opens the phone's share sheet with a Dutch message and the link (pick Messenger → the team chat). On a computer it copies the message instead. **Share reminder** lists who hasn't answered yet.
+  - Players open the link (`/a/<link>`, no login), pick their name once, and tap ✅ In / 🤔 Maybe / ❌ Can't. Their phone remembers them for next time, and they can change their answer until the teams are picked.
+  - Someone answered in the chat instead? Set their answer on the admin page.
+  - **Pick teams** pre-ticks everyone who's in and marks maybes (?) and outs. Saving the match closes the poll.
+  - Facebook doesn't let apps post in group chats, so sharing the link is one tap by hand.
 - **Fair teams**: tick who's playing and get the 3 fairest splits into two teams (5v5, 5v6, …).
   - Tries every possible split (up to ~24 players), so the result is the best possible, not a guess.
   - Balances total strength; with odd numbers the smaller team gets stronger players.
@@ -21,7 +27,7 @@ Web app for running our weekly football: rate players, generate fair teams, reco
 - **Stats**: played/W/D/L, win %, goals, assists, last-5 form, Elo, sortable leaderboard.
 - **Teammate stats**: on each player's page, their win % with and against every other player, plus their best partner and toughest opponent. The stats page lists the best and worst duos.
 - **Results adjust strength**: each player's Elo, based on wins and losses, nudges their rating for team picking (capped at ±2, adjustable in Settings).
-- **Admin only**: one password, set as an environment variable. Shared match pages are the only public part.
+- **Admin only**: one password, set as an environment variable. Shared match pages and "who's coming?" polls are the only public parts.
 
 ## Stack (all free)
 
@@ -61,6 +67,7 @@ npm run dev
 
 - `src/lib/balance.ts`: team balancing algorithm
 - `src/lib/stats.ts`: win/draw/loss, form, Elo
+- `src/lib/poll.ts`: "who's coming?" grouping, chat messages, suggested game day
 - `src/lib/rating.ts`: overall rating and strength
 - `src/db/schema.ts`: database tables
 - `src/app/(app)/…`: pages; `actions.ts` files hold server actions

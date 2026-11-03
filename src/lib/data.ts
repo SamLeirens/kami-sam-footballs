@@ -1,6 +1,6 @@
 import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
-import { db, matches, matchPlayers, motmVotes, players, settings, type Player } from "@/db";
+import { db, matches, matchPlayers, motmVotes, players, pollReplies, polls, settings, type Player, type Poll } from "@/db";
 import { effectiveMotm } from "./motm";
 import { overall, strength } from "./rating";
 import { computePairs, computeStats, emptyStats, type PlayerStats } from "./stats";
@@ -37,4 +37,34 @@ export async function loadClub() {
   });
   const pairs = computePairs(allMatches, entries);
   return { players: rows, matches: allMatches, entries, votes, pairs, settings: cfg };
+}
+
+async function withReplies(poll: Poll | undefined) {
+  if (!poll) return null;
+  const replies = await db.select().from(pollReplies).where(eq(pollReplies.pollId, poll.id));
+  return { ...poll, replies };
+}
+
+export type PollWithReplies = NonNullable<Awaited<ReturnType<typeof withReplies>>>;
+
+/** The "who's coming?" poll that is currently collecting replies, if any. */
+export async function getOpenPoll() {
+  const [poll] = await db.select().from(polls).where(eq(polls.open, true)).orderBy(desc(polls.id)).limit(1);
+  return withReplies(poll);
+}
+
+/** Most recently created poll, open or not. */
+export async function getLatestPoll() {
+  const [poll] = await db.select().from(polls).orderBy(desc(polls.id)).limit(1);
+  return withReplies(poll);
+}
+
+export async function getPollByToken(token: string) {
+  const [poll] = await db.select().from(polls).where(eq(polls.token, token));
+  return withReplies(poll);
+}
+
+/** Active players, names only (safe for public pages). */
+export async function getActivePlayerNames() {
+  return db.select({ id: players.id, name: players.name }).from(players).where(eq(players.active, true)).orderBy(asc(players.name));
 }

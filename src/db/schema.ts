@@ -10,6 +10,7 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
+import type { Answer } from "../lib/poll";
 import type { Position } from "../lib/positions";
 
 export { POSITIONS, type Position } from "../lib/positions";
@@ -88,6 +89,32 @@ export const motmVotes = pgTable(
   (t) => [primaryKey({ columns: [t.matchId, t.voterId] })],
 );
 
+// "Who's coming?" poll for an upcoming game day. Public page at /a/<token>.
+export const polls = pgTable("polls", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull(),
+  token: text("token").notNull().unique(),
+  open: boolean("open").notNull().default(true),
+  // Set when teams are picked from this poll (that also closes it).
+  matchId: integer("match_id").references(() => matches.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const pollReplies = pgTable(
+  "poll_replies",
+  {
+    pollId: integer("poll_id")
+      .notNull()
+      .references(() => polls.id, { onDelete: "cascade" }),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    answer: text("answer").$type<Answer>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.pollId, t.playerId] })],
+);
+
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
   // How much recent results adjust the manual rating (0 = ignore results).
@@ -98,3 +125,5 @@ export type Player = typeof players.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type MatchPlayer = typeof matchPlayers.$inferSelect;
 export type MotmVote = typeof motmVotes.$inferSelect;
+export type Poll = typeof polls.$inferSelect;
+export type PollReply = typeof pollReplies.$inferSelect;

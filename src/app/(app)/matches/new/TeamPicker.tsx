@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/icons";
 import { PosBadge, formatDate } from "@/components/ui";
 import { balanceTeams, teamTotals, type TeamOption } from "@/lib/balance";
+import type { Answer } from "@/lib/poll";
 import type { Position } from "@/lib/positions";
 import { createMatch } from "../actions";
 import { CopyTeamsButton } from "@/components/CopyTeamsButton";
@@ -24,14 +26,17 @@ export function TeamPicker({
   players,
   previous,
   preselected,
+  poll,
 }: {
   players: P[];
   previous: Record<number, "A" | "B">;
   preselected: number[];
+  /** open "who's coming?" poll: its date and everyone's answers */
+  poll: { id: number; date: string; answers: Record<number, Answer> } | null;
 }) {
   const byId = useMemo(() => new Set(players.map((p) => p.id)), [players]);
   const [selected, setSelected] = useState<Set<number>>(() => new Set(preselected.filter((id) => byId.has(id))));
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(() => poll?.date ?? today());
   const [options, setOptions] = useState<TeamOption[]>([]);
   const [optionIdx, setOptionIdx] = useState(0);
   const [teamA, setTeamA] = useState<number[] | null>(null); // current (possibly hand-edited) split
@@ -41,6 +46,7 @@ export function TeamPicker({
   const [saving, startSaving] = useTransition();
 
   const chosen = players.filter((p) => selected.has(p.id));
+  const pollCount = (a: Answer) => players.filter((p) => poll?.answers[p.id] === a).length;
   const n = chosen.length;
 
   function resetTeams() {
@@ -111,7 +117,7 @@ export function TeamPicker({
   function save() {
     if (!split) return;
     startSaving(async () => {
-      const res = await createMatch({ date, teamA: split.a.map((p) => p.id), teamB: split.b.map((p) => p.id) });
+      const res = await createMatch({ date, teamA: split.a.map((p) => p.id), teamB: split.b.map((p) => p.id), pollId: poll?.id });
       if (res?.error) setError(res.error);
     });
   }
@@ -147,6 +153,21 @@ export function TeamPicker({
             </button>
           </div>
 
+          {poll ? (
+            <p className="rounded-lg bg-accent-dim px-3 py-2 text-[13px] text-soft">
+              {pollCount("in")
+                ? `Ticked the ${pollCount("in")} who said they're in`
+                : "Nobody has said they're in yet, so last match's players are ticked"}
+              {pollCount("maybe") > 0 && ` · ${pollCount("maybe")} maybe (?)`}.{" "}
+              <Link href="/attendance" className="font-semibold text-accent">Replies</Link>
+            </p>
+          ) : (
+            <p className="text-[13px] text-muted">
+              Want players to say if they&apos;re coming first?{" "}
+              <Link href="/attendance" className="font-semibold text-accent">Ask who&apos;s coming</Link>
+            </p>
+          )}
+
           <div>
             <div className="label">
               Who&apos;s playing? {n >= 2 && <span className="text-accent">· {Math.floor(n / 2)} v {Math.ceil(n / 2)}</span>}
@@ -172,6 +193,8 @@ export function TeamPicker({
                       {on && "✓"}
                     </span>
                     <span className="flex-1 truncate">{p.name}</span>
+                    {poll?.answers[p.id] === "maybe" && <span className="text-xs font-bold text-warn" title="Said maybe">?</span>}
+                    {poll?.answers[p.id] === "out" && <span className="text-[10px] font-bold text-danger uppercase" title="Can't make it">out</span>}
                     <PosBadge position={p.position} />
                   </button>
                 );

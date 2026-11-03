@@ -1,17 +1,19 @@
 import Link from "next/link";
-import { loadClub } from "@/lib/data";
+import { getOpenPoll, loadClub } from "@/lib/data";
 import { TeamPicker } from "./TeamPicker";
 
 export default async function NewMatchPage() {
-  const { players, matches, entries } = await loadClub();
+  const [{ players, matches, entries }, poll] = await Promise.all([loadClub(), getOpenPoll()]);
   const active = players.filter((p) => p.active);
 
   // Most recent match's teams, so the generator can avoid repeating them.
   const last = matches[0];
   const previous: Record<number, "A" | "B"> = {};
   if (last) for (const e of entries) if (e.matchId === last.id) previous[e.playerId] = e.team;
-  // Pre-tick whoever played last time.
+  // Pre-tick who said they're in; without replies, whoever played last time.
   const lastPlayers = Object.keys(previous).map(Number);
+  const answers = Object.fromEntries((poll?.replies ?? []).map((r) => [r.playerId, r.answer]));
+  const pollIn = poll?.replies.filter((r) => r.answer === "in").map((r) => r.playerId) ?? [];
 
   if (active.length < 2) {
     return (
@@ -35,7 +37,8 @@ export default async function NewMatchPage() {
         defence: p.defence,
       }))}
       previous={previous}
-      preselected={lastPlayers}
+      preselected={pollIn.length ? pollIn : lastPlayers}
+      poll={poll ? { id: poll.id, date: poll.date, answers } : null}
     />
   );
 }

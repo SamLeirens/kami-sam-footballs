@@ -8,6 +8,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // everything except login, public match pages (/m/...), Next internals and static files
-  matcher: ["/((?!login|m/|_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|webmanifest)$).*)"],
+  // everything except login, public match pages (/m/...) and polls (/a/...), Next internals and static files
+  matcher: ["/((?!login|m/|a/|_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|webmanifest)$).*)"],
 };

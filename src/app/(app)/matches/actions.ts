@@ -4,12 +4,12 @@ import { randomBytes } from "node:crypto";
 import { and, eq, or, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { db, matches, matchPlayers, motmVotes } from "@/db";
+import { db, matches, matchPlayers, motmVotes, polls } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function createMatch(input: { date: string; teamA: number[]; teamB: number[] }) {
+export async function createMatch(input: { date: string; teamA: number[]; teamB: number[]; pollId?: number }) {
   await requireAdmin();
   if (!DATE_RE.test(input.date)) return { error: "Invalid date" };
   if (!input.teamA.length || !input.teamB.length) return { error: "Both teams need players" };
@@ -22,6 +22,8 @@ export async function createMatch(input: { date: string; teamA: number[]; teamB:
       ...input.teamA.map((playerId) => ({ matchId: m.id, playerId, team: "A" as const })),
       ...input.teamB.map((playerId) => ({ matchId: m.id, playerId, team: "B" as const })),
     ]);
+    // Teams picked from a "who's coming?" poll: link it and stop taking replies.
+    if (input.pollId) await tx.update(polls).set({ open: false, matchId: m.id }).where(eq(polls.id, input.pollId));
     return m.id;
   });
   redirect(`/matches/${id}`);

@@ -2,14 +2,16 @@ import Link from "next/link";
 import { TEAMS } from "@/lib/teams";
 import { Icon, Star } from "@/components/icons";
 import { LeaderTabs, type LeaderBoard } from "@/components/LeaderTabs";
+import { ShareButton } from "@/components/ShareButton";
 import { formatDate } from "@/components/ui";
-import { loadClub, type PlayerRow } from "@/lib/data";
+import { getOpenPoll, loadClub, type PlayerRow } from "@/lib/data";
+import { groupReplies, inviteText, reminderText } from "@/lib/poll";
 import { isPlayed } from "@/lib/stats";
 
 const MIN_GAMES = 3;
 
 export default async function Dashboard() {
-  const { players, matches, entries } = await loadClub();
+  const [{ players, matches, entries }, poll] = await Promise.all([loadClub(), getOpenPoll()]);
   const names = new Map(players.map((p) => [p.id, p.name]));
   const playedMatches = matches.filter(isPlayed);
   const next = matches.filter((m) => !isPlayed(m)).at(-1); // newest first → earliest planned
@@ -55,32 +57,69 @@ export default async function Dashboard() {
   ];
 
   const nextCount = next ? lineup(next.id).length : 0;
+  const pollGroups = poll ? groupReplies(players.filter((p) => p.active), poll.replies) : null;
+  const cardLink = "flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg";
   const lastLineup = last ? lineup(last.id) : [];
   const scorers = lastLineup.filter((e) => (e.goals ?? 0) > 0).sort((a, b) => (b.goals ?? 0) - (a.goals ?? 0));
   const winner = last ? (last.scoreA > last.scoreB ? "A" : last.scoreB > last.scoreA ? "B" : null) : null;
 
   return (
     <div className="mx-auto max-w-xl space-y-3.5 md:max-w-none md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-      <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
-        <div className="flex items-baseline justify-between text-xs font-semibold">
-          <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
-          {next && (
+      {poll && pollGroups ? (
+        // A "who's coming?" poll is collecting replies: that's the next step.
+        <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
+          <div className="flex items-baseline justify-between text-xs font-semibold">
+            <span className="tracking-widest uppercase">Who&apos;s coming</span>
             <span>
-              {nextCount} in · {Math.floor(nextCount / 2)} v {Math.ceil(nextCount / 2)}
+              {pollGroups.in.length} in · {pollGroups.maybe.length} maybe · {pollGroups.none.length} no reply
             </span>
+          </div>
+          <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">{formatDate(poll.date, { short: true })}</div>
+          <div className="grid grid-cols-2 gap-2">
+            <ShareButton
+              what={pollGroups.none.length && poll.replies.length ? "reminder" : "invite"}
+              path={`/a/${poll.token}`}
+              template={
+                pollGroups.none.length && poll.replies.length ? reminderText(poll.date, "{url}", pollGroups) : inviteText(poll.date, "{url}")
+              }
+              className="min-h-12 rounded-[14px] border border-ground/25 px-3 text-[15px] font-semibold"
+            />
+            <Link href="/attendance" className={cardLink}>
+              Replies
+              <Icon name="arrowRight" size={20} />
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
+          <div className="flex items-baseline justify-between text-xs font-semibold">
+            <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
+            {next && (
+              <span>
+                {nextCount} in · {Math.floor(nextCount / 2)} v {Math.ceil(nextCount / 2)}
+              </span>
+            )}
+          </div>
+          <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
+            {next ? formatDate(next.date, { short: true }) : "Plan next game"}
+          </div>
+          {next ? (
+            <Link href={`/matches/${next.id}`} className={cardLink}>
+              Open match
+              <Icon name="arrowRight" size={20} />
+            </Link>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/attendance" className={`${cardLink} px-3`}>
+                Who&apos;s coming?
+              </Link>
+              <Link href="/matches/new" className="flex min-h-12 items-center justify-center rounded-[14px] border border-ground/25 px-3 text-[15px] font-semibold">
+                Pick teams
+              </Link>
+            </div>
           )}
-        </div>
-        <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
-          {next ? formatDate(next.date, { short: true }) : "Pick teams"}
-        </div>
-        <Link
-          href={next ? `/matches/${next.id}` : "/matches/new"}
-          className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
-        >
-          {next ? "Open match" : "Pick fair teams"}
-          <Icon name="arrowRight" size={20} />
-        </Link>
-      </section>
+        </section>
+      )}
 
       {last ? (
         <section className="card flex flex-col gap-2.5">
