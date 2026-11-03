@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Star } from "@/components/icons";
 import { formatDate } from "@/components/ui";
 import { loadClub, todayISO } from "@/lib/data";
+import { nextGameDate } from "@/lib/rsvp";
 import { isPlayed } from "@/lib/stats";
 import { TEAMS } from "@/lib/teams";
 import { planMatch } from "./actions";
@@ -27,7 +28,7 @@ export default async function MatchesPage() {
       <form action={planMatch} className="card flex flex-wrap items-end gap-2">
         <div className="min-w-44 flex-1">
           <label className="label" htmlFor="plan-date">Plan a match &amp; ask who&apos;s in</label>
-          <input id="plan-date" name="date" type="date" required className="input" defaultValue={todayISO()} />
+          <input id="plan-date" name="date" type="date" required className="input" defaultValue={nextGameDate(matches[0]?.date ?? null, todayISO())} />
         </div>
         <button className="btn-secondary">Plan match</button>
       </form>

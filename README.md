@@ -7,7 +7,9 @@ Web app for running our weekly football: rate players, generate fair teams, reco
 - **Teams are Blue and Orange**, the colours of our two shirts (stored as A/B in the database; names live in `src/lib/teams.ts`).
 - **Players**: rate each player 1–10 on attack, defence, passing, fitness and goalkeeping, plus a main position (GK/DEF/MID/ATT). Each player page has a chart of their rating over time.
 - **Guests**: add a one-off player from the team picker with just a name, level and position. Guests play in matches and count for results, but stay out of leaderboards and club stats.
-- **Who's in?**: plan a match (Matches → Plan match) and share its link. Players pick their name and tap *I'm in* / *Can't make it*. You can also set replies yourself. *Pick teams* then starts with everyone who's in ticked, and the same link switches to show the teams.
+- **Who's in?**: plan a match (Matches → Plan match; the date defaults to the next game on your usual weekday) and share its link. Players pick their name and tap *I'm in* / *Maybe* / *Can't*. Their phone remembers who they are, so next week it's one tap. You can also set replies yourself. *Pick teams* then starts with everyone who's in ticked (maybes are listed), and the same link switches to show the teams.
+  - **Share invite** (on the match page and on Home) opens the phone's share sheet with a Dutch message and the link: pick Messenger, then the team chat. On a computer it copies the message instead. Once replies come in it becomes **Share reminder**, which lists who hasn't answered yet.
+  - Facebook doesn't let apps post in group chats, so sharing is one tap by hand.
 - **Fair teams**: tick who's playing and get the 3 fairest splits into two teams (5v5, 5v6, …).
   - Tries every possible split (up to ~24 players), so the result is the best possible, not a guess.
   - Balances total strength; with odd numbers the smaller team gets stronger players.
@@ -65,6 +67,7 @@ npm run dev
 
 - `src/lib/balance.ts`: team balancing algorithm
 - `src/lib/stats.ts`: win/draw/loss, form, Elo
+- `src/lib/rsvp.ts`: who's-in answers, Dutch chat messages, suggested game day
 - `src/lib/rating.ts`: overall rating and strength
 - `src/db/schema.ts`: database tables
 - `src/app/(app)/…`: pages; `actions.ts` files hold server actions

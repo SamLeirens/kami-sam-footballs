@@ -7,7 +7,7 @@ import { formatDate } from "@/components/ui";
 import { loadClub } from "@/lib/data";
 import { tally } from "@/lib/motm";
 import { isPlayed } from "@/lib/stats";
-import { rsvpCookie, voteCookie } from "./vote-cookie";
+import { ME_COOKIE, rsvpCookie, voteCookie } from "./vote-cookie";
 import { RsvpForm } from "./RsvpForm";
 import { VoteForm } from "./VoteForm";
 
@@ -23,11 +23,18 @@ async function load(token: string) {
 export async function generateMetadata({ params }: PageProps<"/m/[token]">): Promise<Metadata> {
   const data = await load((await params).token);
   if (!data) return { title: "Kami Football" };
-  const { match } = data;
+  const { club, match } = data;
+  const asking = !isPlayed(match) && !club.entries.some((e) => e.matchId === match.id);
   const title = isPlayed(match)
     ? `${TEAMS.A.name} ${match.scoreA}–${match.scoreB} ${TEAMS.B.name} · ${formatDate(match.date)}`
     : `Are you playing? ${formatDate(match.date)}`;
-  return { title, description: isPlayed(match) ? "Result, stats and man of the match vote" : "Kami Football line-ups" };
+  const description = isPlayed(match)
+    ? "Result, stats and man of the match vote"
+    : asking
+      ? "Kami FC · tap your name and say if you're in"
+      : "Kami Football line-ups";
+  // openGraph = the link preview in the group chat
+  return { title, description, openGraph: { title, description, siteName: "Kami FC" } };
 }
 
 export default async function SharedMatchPage({ params }: PageProps<"/m/[token]">) {
@@ -37,7 +44,9 @@ export default async function SharedMatchPage({ params }: PageProps<"/m/[token]"
   const { club, match } = data;
   const hasLineup = club.entries.some((e) => e.matchId === match.id);
   if (!isPlayed(match) && !hasLineup) {
-    const me = Number((await cookies()).get(rsvpCookie(match.id))?.value) || null;
+    // Who answered for this match on this device, else who used it last time.
+    const jar = await cookies();
+    const me = Number(jar.get(rsvpCookie(match.id))?.value ?? jar.get(ME_COOKIE)?.value) || null;
     return <Availability token={token} club={club} match={match} me={me} />;
   }
 
@@ -212,6 +221,7 @@ function Availability({ token, club, match, me }: { token: string; club: Club; m
     .filter((p) => p.active && (!p.isGuest || replies.has(p.id)))
     .map((p) => ({ id: p.id, name: p.name, status: replies.get(p.id) ?? null }));
   const inList = people.filter((p) => p.status === "in");
+  const maybeList = people.filter((p) => p.status === "maybe");
   const outList = people.filter((p) => p.status === "out");
   const waiting = people.filter((p) => p.status === null);
 
@@ -224,6 +234,7 @@ function Availability({ token, club, match, me }: { token: string; club: Club; m
         <span className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">{formatDate(match.date, { short: true })}</span>
         <span className="text-sm font-semibold">
           {inList.length} in{inList.length >= 2 ? ` · ${Math.floor(inList.length / 2)} v ${Math.ceil(inList.length / 2)}` : ""}
+          {maybeList.length > 0 && ` · ${maybeList.length} maybe`}
         </span>
       </section>
 
@@ -233,6 +244,7 @@ function Availability({ token, club, match, me }: { token: string; club: Club; m
 
       <section className="card space-y-3 text-sm">
         <ReplyList title="In" names={inList.map((p) => p.name)} className="text-accent" />
+        <ReplyList title="Maybe" names={maybeList.map((p) => p.name)} className="text-warn" />
         <ReplyList title="Out" names={outList.map((p) => p.name)} className="text-danger" />
         <ReplyList title="No reply yet" names={waiting.map((p) => p.name)} className="text-muted" />
       </section>
