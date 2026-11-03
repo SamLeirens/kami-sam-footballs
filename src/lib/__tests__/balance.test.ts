@@ -25,13 +25,6 @@ describe("balanceTeams", () => {
     expect([best.teamA.length, best.teamB.length].sort()).toEqual([5, 6]);
   });
 
-  it("puts goalkeepers on opposite teams", () => {
-    const ps = [mk(1, 8, "GK"), mk(2, 8, "GK"), ...Array.from({ length: 8 }, (_, i) => mk(i + 3, 6))];
-    const [best] = balanceTeams(ps);
-    const gkInA = [1, 2].filter((id) => best.teamA.includes(id)).length;
-    expect(gkInA).toBe(1);
-  });
-
   it("returns 3 distinct options", () => {
     const ps = Array.from({ length: 12 }, (_, i) => mk(i + 1, 3 + ((i * 7) % 7)));
     const opts = balanceTeams(ps);

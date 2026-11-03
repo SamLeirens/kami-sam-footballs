@@ -27,7 +27,6 @@ export type BalanceOptions = {
 };
 
 // Penalty weights, in "rating points".
-const W_GK = 4; // keepers piled on one side
 const W_POS = 0.6; // defenders / attackers piled on one side
 const W_ATTR = 0.1; // attack vs defence attribute totals
 const W_REPEAT = 1; // same teams as last time
@@ -63,7 +62,6 @@ function makeContext(players: BalancePlayer[], previous?: Map<number, "A" | "B">
     s: players.map((p) => p.strength),
     att: players.map((p) => p.attack),
     def: players.map((p) => p.defence),
-    gk: players.map((p) => (p.position === "GK" ? 1 : 0)),
     defPos: players.map((p) => (p.position === "DEF" ? 1 : 0)),
     attPos: players.map((p) => (p.position === "ATT" ? 1 : 0)),
     prev,
@@ -72,7 +70,6 @@ function makeContext(players: BalancePlayer[], previous?: Map<number, "A" | "B">
       s: sum(players.map((p) => p.strength)),
       att: sum(players.map((p) => p.attack)),
       def: sum(players.map((p) => p.defence)),
-      gk: sum(players.map((p) => (p.position === "GK" ? 1 : 0))),
       defPos: sum(players.map((p) => (p.position === "DEF" ? 1 : 0))),
       attPos: sum(players.map((p) => (p.position === "ATT" ? 1 : 0))),
     },
@@ -81,13 +78,12 @@ function makeContext(players: BalancePlayer[], previous?: Map<number, "A" | "B">
 
 /** Cost of a split where bit i of `mask` set = player i in team A. */
 function cost(ctx: Ctx, mask: number, n: number): number {
-  let sA = 0, attA = 0, defA = 0, gkA = 0, dpA = 0, apA = 0, sameAsPrev = 0;
+  let sA = 0, attA = 0, defA = 0, dpA = 0, apA = 0, sameAsPrev = 0;
   for (let i = 0; i < n; i++) {
     if (mask & (1 << i)) {
       sA += ctx.s[i];
       attA += ctx.att[i];
       defA += ctx.def[i];
-      gkA += ctx.gk[i];
       dpA += ctx.defPos[i];
       apA += ctx.attPos[i];
       if (ctx.prev[i] === "A") sameAsPrev++;
@@ -96,7 +92,6 @@ function cost(ctx: Ctx, mask: number, n: number): number {
   const t = ctx.totals;
   const spread = (a: number, total: number) => Math.abs(2 * a - total) - (total % 2); // 0 when as even as possible
   let c = Math.abs(2 * sA - t.s);
-  c += W_GK * spread(gkA, t.gk);
   c += W_POS * (spread(dpA, t.defPos) + spread(apA, t.attPos));
   c += W_ATTR * (Math.abs(2 * attA - t.att) + Math.abs(2 * defA - t.def));
   if (ctx.prevCount >= 4) {

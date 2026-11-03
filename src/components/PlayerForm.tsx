@@ -14,7 +14,6 @@ const DEFAULTS: Initial = {
   defence: 5,
   passing: 5,
   fitness: 5,
-  goalkeeping: 3,
 };
 
 export function PlayerForm({
