@@ -3,8 +3,9 @@
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { refresh } from "next/cache";
-import { db, matches, matchPlayers, motmVotes } from "@/db";
-import { voteCookie } from "./vote-cookie";
+import { db, matches, matchPlayers, motmVotes, players, rsvps } from "@/db";
+import { isRsvpStatus } from "@/lib/rsvp";
+import { ME_COOKIE, rsvpCookie, voteCookie } from "./vote-cookie";
 
 export type VoteState = { error?: string } | null;
 
@@ -39,6 +40,36 @@ export async function castVote(token: string, _prev: VoteState, formData: FormDa
     path: "/",
     maxAge: 60 * 60 * 24 * 90,
   });
+  refresh();
+  return null;
+}
+
+export type RsvpState = { error?: string } | null;
+
+/** Public (no login): a player says whether they're playing in a planned match. */
+export async function respond(token: string, _prev: RsvpState, formData: FormData): Promise<RsvpState> {
+  const playerId = Number(formData.get("player"));
+  const status = formData.get("status");
+  if (!playerId) return { error: "Pick your name first." };
+  if (!isRsvpStatus(status)) return { error: "Choose in, maybe or out." };
+
+  const [match] = await db.select().from(matches).where(eq(matches.shareToken, token));
+  if (!match) return { error: "Match not found." };
+  if (match.scoreA !== null) return { error: "This match has already been played." };
+  const lineup = await db.select().from(matchPlayers).where(eq(matchPlayers.matchId, match.id));
+  if (lineup.length) return { error: "Teams are already picked. Message the organiser if something changed." };
+  const [player] = await db.select().from(players).where(eq(players.id, playerId));
+  if (!player?.active) return { error: "Unknown player." };
+
+  await db
+    .insert(rsvps)
+    .values({ matchId: match.id, playerId, status })
+    .onConflictDoUpdate({ target: [rsvps.matchId, rsvps.playerId], set: { status, updatedAt: new Date() } });
+
+  const jar = await cookies();
+  const opts = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/" };
+  jar.set(rsvpCookie(match.id), String(playerId), { ...opts, maxAge: 60 * 60 * 24 * 60 });
+  jar.set(ME_COOKIE, String(playerId), { ...opts, maxAge: 60 * 60 * 24 * 365 });
   refresh();
   return null;
 }

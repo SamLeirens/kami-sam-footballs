@@ -5,9 +5,10 @@ import { loadClub } from "@/lib/data";
 import { createPlayer } from "./actions";
 
 export default async function PlayersPage() {
-  const { players } = await loadClub();
-  const active = players.filter((p) => p.active);
-  const inactive = players.filter((p) => !p.active);
+  const { players, members } = await loadClub({ season: "all" });
+  const active = members.filter((p) => p.active);
+  const inactive = members.filter((p) => !p.active);
+  const guests = players.filter((p) => p.isGuest);
 
   return (
     <div className="space-y-6">
@@ -26,7 +27,7 @@ export default async function PlayersPage() {
         </div>
       </details>
 
-      {players.length > 0 && (
+      {members.length > 0 && (
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="border-b border-line-soft text-left text-xs uppercase tracking-wide text-muted">
@@ -60,6 +61,25 @@ export default async function PlayersPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {guests.length > 0 && (
+        <section className="card">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="h2">Guests</h2>
+            <span className="text-xs text-muted">Not in leaderboards or club stats</span>
+          </div>
+          <ul className="divide-y divide-line-soft text-sm">
+            {guests.map((p) => (
+              <li key={p.id} className={`flex items-center gap-3 py-2 ${p.active ? "" : "opacity-50"}`}>
+                <PosBadge position={p.position} />
+                <Link href={`/players/${p.id}`} className="flex-1 font-medium hover:text-accent">{p.name}</Link>
+                <span className="text-muted">{p.stats.played} game{p.stats.played === 1 ? "" : "s"}</span>
+                <span className="w-10 text-right tabular-nums">{p.overall.toFixed(1)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

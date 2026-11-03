@@ -5,7 +5,7 @@ import { POSITIONS, type Position } from "@/lib/positions";
 import { ATTRIBUTES, overall, type Attributes } from "@/lib/rating";
 import type { FormState } from "@/app/(app)/players/actions";
 
-type Initial = Attributes & { name: string; position: Position; active?: boolean };
+type Initial = Attributes & { name: string; position: Position; active?: boolean; isGuest?: boolean };
 
 const DEFAULTS: Initial = {
   name: "",
@@ -115,6 +115,17 @@ function Fields({ initial, showActive, autoFocus }: { initial: Initial; showActi
           <span className="text-2xl font-bold text-accent">{overall(values)}</span>
         </div>
       </div>
+
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="isGuest"
+          checked={values.isGuest ?? false}
+          onChange={(e) => set("isGuest", e.target.checked)}
+          className="h-4 w-4 accent-accent"
+        />
+        Guest <span className="text-muted">(plays now and then; left out of club stats)</span>
+      </label>
 
       {showActive && (
         <label className="flex items-center gap-2 text-sm">

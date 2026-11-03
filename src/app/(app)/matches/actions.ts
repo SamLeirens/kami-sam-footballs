@@ -4,12 +4,16 @@ import { randomBytes } from "node:crypto";
 import { and, eq, or, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { db, matches, matchPlayers, motmVotes, polls } from "@/db";
+import { db, matches, matchPlayers, motmVotes, rsvps } from "@/db";
 import { requireAdmin } from "@/lib/auth";
+import { todayISO } from "@/lib/data";
+import type { RsvpStatus } from "@/lib/rsvp";
+import { validatePastMatch, type PastMatchInput } from "@/lib/pastMatch";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function createMatch(input: { date: string; teamA: number[]; teamB: number[]; pollId?: number }) {
+/** Saves picked teams: a new match, or the line-up of an already planned one (`matchId`). */
+export async function createMatch(input: { matchId?: number; date: string; teamA: number[]; teamB: number[] }) {
   await requireAdmin();
   if (!DATE_RE.test(input.date)) return { error: "Invalid date" };
   if (!input.teamA.length || !input.teamB.length) return { error: "Both teams need players" };
@@ -17,16 +21,50 @@ export async function createMatch(input: { date: string; teamA: number[]; teamB:
   if (new Set(ids).size !== ids.length) return { error: "A player is on both teams" };
 
   const id = await db.transaction(async (tx) => {
-    const [m] = await tx.insert(matches).values({ date: input.date }).returning({ id: matches.id });
+    let matchId = input.matchId;
+    if (matchId) {
+      const [m] = await tx.update(matches).set({ date: input.date }).where(eq(matches.id, matchId)).returning({ id: matches.id });
+      if (!m) throw new Error("Match not found");
+      await tx.delete(matchPlayers).where(eq(matchPlayers.matchId, matchId));
+      await tx.delete(motmVotes).where(eq(motmVotes.matchId, matchId));
+    } else {
+      const [m] = await tx.insert(matches).values({ date: input.date }).returning({ id: matches.id });
+      matchId = m.id;
+    }
+    const mid = matchId;
     await tx.insert(matchPlayers).values([
-      ...input.teamA.map((playerId) => ({ matchId: m.id, playerId, team: "A" as const })),
-      ...input.teamB.map((playerId) => ({ matchId: m.id, playerId, team: "B" as const })),
+      ...input.teamA.map((playerId) => ({ matchId: mid, playerId, team: "A" as const })),
+      ...input.teamB.map((playerId) => ({ matchId: mid, playerId, team: "B" as const })),
     ]);
-    // Teams picked from a "who's coming?" poll: link it and stop taking replies.
-    if (input.pollId) await tx.update(polls).set({ open: false, matchId: m.id }).where(eq(polls.id, input.pollId));
-    return m.id;
+    return mid;
   });
   redirect(`/matches/${id}`);
+}
+
+/** Creates an upcoming match without teams, with a link players use to say if they're in. */
+export async function planMatch(formData: FormData) {
+  await requireAdmin();
+  const date = String(formData.get("date") ?? "");
+  if (!DATE_RE.test(date)) return;
+  const [m] = await db
+    .insert(matches)
+    .values({ date, shareToken: randomBytes(9).toString("base64url") })
+    .returning({ id: matches.id });
+  redirect(`/matches/${m.id}`);
+}
+
+/** Admin sets someone's reply (e.g. they told you in the group chat). null clears it. */
+export async function setRsvp(matchId: number, playerId: number, status: RsvpStatus | null) {
+  await requireAdmin();
+  if (status === null) {
+    await db.delete(rsvps).where(and(eq(rsvps.matchId, matchId), eq(rsvps.playerId, playerId)));
+  } else {
+    await db
+      .insert(rsvps)
+      .values({ matchId, playerId, status })
+      .onConflictDoUpdate({ target: [rsvps.matchId, rsvps.playerId], set: { status, updatedAt: new Date() } });
+  }
+  refresh();
 }
 
 const optInt = (v: FormDataEntryValue | null) => {
@@ -129,4 +167,23 @@ export async function removeVote(matchId: number, voterId: number) {
   await requireAdmin();
   await db.delete(motmVotes).where(and(eq(motmVotes.matchId, matchId), eq(motmVotes.voterId, voterId)));
   refresh();
+}
+
+/** Enter a match that was already played: line-up, score, optional goals/assists/MOTM, in one go. */
+export async function addPastMatch(input: PastMatchInput): Promise<{ error: string } | { id: number }> {
+  await requireAdmin();
+  const error = validatePastMatch(input, todayISO());
+  if (error) return { error };
+  const id = await db.transaction(async (tx) => {
+    const [m] = await tx
+      .insert(matches)
+      .values({ date: input.date, scoreA: input.scoreA, scoreB: input.scoreB, motmPlayerId: input.motmPlayerId, votingOpen: false })
+      .returning({ id: matches.id });
+    await tx.insert(matchPlayers).values(
+      input.players.map((p) => ({ matchId: m.id, playerId: p.playerId, team: p.team, goals: p.goals, assists: p.assists })),
+    );
+    return m.id;
+  });
+  refresh();
+  return { id };
 }

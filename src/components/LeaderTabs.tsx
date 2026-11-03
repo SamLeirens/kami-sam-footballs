@@ -8,11 +8,12 @@ import { Form } from "./ui";
 export type LeaderRow = { id: number; name: string; value: string; form: Result[] };
 export type LeaderBoard = { key: string; label: string; rows: LeaderRow[]; empty: string };
 
-export function LeaderTabs({ boards }: { boards: LeaderBoard[] }) {
+export function LeaderTabs({ boards, caption }: { boards: LeaderBoard[]; caption?: string }) {
   const [active, setActive] = useState(boards[0]?.key);
   const board = boards.find((b) => b.key === active) ?? boards[0];
   return (
     <section className="card pt-3.5 pb-2">
+      {caption && <div className="mb-2 text-xs font-semibold tracking-widest text-muted uppercase">{caption}</div>}
       <div role="tablist" aria-label="Leaderboards" className="mb-1.5 flex gap-1.5">
         {boards.map((b) => (
           <button

@@ -4,10 +4,15 @@ import { TEAMS } from "@/lib/teams";
 import { Star } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { ShareButton } from "@/components/ShareButton";
 import { ShareLink } from "@/components/ShareLink";
+import { Icon } from "@/components/icons";
 import { tally } from "@/lib/motm";
 import { formatDate, PosBadge } from "@/components/ui";
 import { loadClub, type PlayerRow } from "@/lib/data";
+import { inviteText, reminderText, RSVP_STATUSES, type RsvpStatus } from "@/lib/rsvp";
+
+type Club = Awaited<ReturnType<typeof loadClub>>;
 import { isPlayed } from "@/lib/stats";
 import {
   addToMatch,
@@ -17,6 +22,7 @@ import {
   removeVote,
   saveResult,
   setVotingOpen,
+  setRsvp,
   switchTeam,
 } from "../actions";
 
@@ -41,6 +47,8 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
   const votes = club.votes.filter((v) => v.matchId === id);
   const voteTally = tally(votes);
 
+  if (!played && lineup.length === 0) return <PlannedMatch club={club} match={match} />;
+
   return (
     <div className="space-y-6">
       <Link href="/matches" className="text-sm text-muted hover:underline">← Matches</Link>
@@ -50,6 +58,11 @@ export default async function MatchPage({ params }: PageProps<"/matches/[id]">) 
           <span className="rounded-full bg-accent-dim px-2.5 py-1 text-xs font-semibold text-accent">Played</span>
         ) : (
           <span className="rounded-full bg-warn-dim px-2.5 py-1 text-xs font-semibold text-warn">Planned</span>
+        )}
+        {!played && (
+          <Link href={`/matches/new?match=${id}`} className="ml-auto text-sm font-semibold text-accent">
+            Re-pick teams
+          </Link>
         )}
       </div>
 
@@ -229,5 +242,129 @@ function LineupRow({
         <button formAction={removeFromMatch.bind(null, matchId, player.id)} className="rounded px-2 py-1 text-muted hover:bg-danger-dim hover:text-danger" title="Remove from match">✕</button>
       </span>
     </li>
+  );
+}
+
+/** A match with a date but no teams yet: collect who's in, then pick teams. */
+function PlannedMatch({ club, match }: { club: Club; match: Club["matches"][number] }) {
+  const replies = new Map(club.rsvps.filter((r) => r.matchId === match.id).map((r) => [r.playerId, r.status]));
+  const people = club.players
+    .filter((p) => p.active && (!p.isGuest || replies.has(p.id)))
+    .map((p) => ({ ...p, status: replies.get(p.id) ?? null }))
+    .sort((a, b) => order(a.status) - order(b.status) || a.name.localeCompare(b.name));
+  const inCount = people.filter((p) => p.status === "in").length;
+  const outCount = people.filter((p) => p.status === "out").length;
+  const maybeCount = people.filter((p) => p.status === "maybe").length;
+  const waiting = people.filter((p) => p.status === null).map((p) => p.name);
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <Link href="/matches" className="text-sm text-muted hover:underline">← Matches</Link>
+      <div className="flex flex-wrap items-baseline gap-3">
+        <h1 className="h1">{formatDate(match.date)}</h1>
+        <span className="rounded-full bg-warn-dim px-2.5 py-1 text-xs font-semibold text-warn">Planned</span>
+      </div>
+
+      <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
+        <div className="flex items-baseline justify-between text-xs font-semibold">
+          <span className="tracking-widest uppercase">Who&apos;s in</span>
+          <span>
+            {maybeCount} maybe · {outCount} out · {waiting.length} no reply
+          </span>
+        </div>
+        <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
+          {inCount} in{inCount >= 2 && <span className="text-2xl"> · {Math.floor(inCount / 2)} v {Math.ceil(inCount / 2)}</span>}
+        </div>
+        <Link
+          href={`/matches/new?match=${match.id}`}
+          className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
+        >
+          Pick teams from {inCount} players
+          <Icon name="arrowRight" size={20} />
+        </Link>
+      </section>
+
+      <section className="card space-y-3">
+        <div>
+          <h2 className="h2">Ask the group</h2>
+          <p className="text-sm text-muted">
+            Players open the link, pick their name and tap in, maybe or out. No login needed. On your phone, Share opens the
+            share sheet: pick Messenger, then the team chat.
+          </p>
+        </div>
+        {match.shareToken ? (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <ShareButton what="invite" path={`/m/${match.shareToken}`} template={inviteText(match.date, "{url}")} className="btn flex-1" />
+              {waiting.length > 0 && (
+                <ShareButton
+                  what="reminder"
+                  path={`/m/${match.shareToken}`}
+                  template={reminderText(match.date, "{url}", inCount, waiting)}
+                  className="btn-secondary flex-1"
+                />
+              )}
+            </div>
+            <ShareLink path={`/m/${match.shareToken}`} />
+          </>
+        ) : (
+          <form action={createShareLink.bind(null, match.id)}>
+            <button className="btn">Create link</button>
+          </form>
+        )}
+      </section>
+
+      <section className="card">
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="h2">Replies</h2>
+          <span className="text-xs text-muted">Set someone&apos;s reply yourself if they told you</span>
+        </div>
+        <ul className="divide-y divide-line-soft">
+          {people.map((p) => (
+            <li key={p.id} className="flex items-center gap-2 py-1.5 text-sm">
+              <PosBadge position={p.position} />
+              <span className="flex-1 truncate font-medium">
+                {p.name}
+                {p.isGuest && <span className="ml-1.5 text-xs text-muted">guest</span>}
+              </span>
+              <form className="flex gap-1">
+                {RSVP_STATUSES.map((st) => (
+                  <RsvpButton key={st} on={p.status === st} tone={st} action={setRsvp.bind(null, match.id, p.id, p.status === st ? null : st)} />
+                ))}
+              </form>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <form>
+        <ConfirmButton message="Delete this planned match?" formAction={deleteMatch.bind(null, match.id)}>
+          Delete match
+        </ConfirmButton>
+      </form>
+    </div>
+  );
+}
+
+const order = (s: RsvpStatus | null) => (s === "in" ? 0 : s === "maybe" ? 1 : s === null ? 2 : 3);
+
+const RSVP_ON: Record<RsvpStatus, string> = {
+  in: "bg-accent text-ground border-accent",
+  maybe: "bg-warn-dim text-warn border-warn/60",
+  out: "bg-danger-dim text-danger border-danger/60",
+};
+const RSVP_LABEL: Record<RsvpStatus, string> = { in: "In", maybe: "Maybe", out: "Out" };
+
+function RsvpButton({ on, tone, action }: { on: boolean; tone: RsvpStatus; action: () => Promise<void> }) {
+  const onStyle = RSVP_ON[tone];
+  const label = RSVP_LABEL[tone];
+  return (
+    <button
+      formAction={action}
+      aria-pressed={on}
+      className={`min-h-9 min-w-12 rounded-lg border px-2.5 text-xs font-semibold ${on ? onStyle : "border-line text-muted hover:text-fg"}`}
+    >
+      {label}
+    </button>
   );
 }

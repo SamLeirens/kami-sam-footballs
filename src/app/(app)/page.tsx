@@ -4,14 +4,14 @@ import { Icon, Star } from "@/components/icons";
 import { LeaderTabs, type LeaderBoard } from "@/components/LeaderTabs";
 import { ShareButton } from "@/components/ShareButton";
 import { formatDate } from "@/components/ui";
-import { getOpenPoll, loadClub, type PlayerRow } from "@/lib/data";
-import { groupReplies, inviteText, reminderText } from "@/lib/poll";
+import { inviteText, reminderText } from "@/lib/rsvp";
+import { loadClub, type PlayerRow } from "@/lib/data";
 import { isPlayed } from "@/lib/stats";
 
 const MIN_GAMES = 3;
 
 export default async function Dashboard() {
-  const [{ players, matches, entries }, poll] = await Promise.all([loadClub(), getOpenPoll()]);
+  const { players, members, matches, entries, rsvps, season } = await loadClub();
   const names = new Map(players.map((p) => [p.id, p.name]));
   const playedMatches = matches.filter(isPlayed);
   const next = matches.filter((m) => !isPlayed(m)).at(-1); // newest first → earliest planned
@@ -38,7 +38,7 @@ export default async function Dashboard() {
       label: "Win %",
       empty: `Players need ${MIN_GAMES}+ games to appear here.`,
       rows: board(
-        players.filter((p) => p.stats.played >= MIN_GAMES).sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played),
+        members.filter((p) => p.stats.played >= MIN_GAMES).sort((a, b) => b.stats.winPct - a.stats.winPct || b.stats.played - a.stats.played),
         (p) => `${Math.round(p.stats.winPct)}%`,
       ),
     },
@@ -46,80 +46,68 @@ export default async function Dashboard() {
       key: "goals",
       label: "Goals",
       empty: "No goals recorded yet.",
-      rows: board(players.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals), (p) => String(p.stats.goals)),
+      rows: board(members.filter((p) => p.stats.goals > 0).sort((a, b) => b.stats.goals - a.stats.goals), (p) => String(p.stats.goals)),
     },
     {
       key: "motm",
       label: "MOTM",
       empty: "No man of the match awards yet.",
-      rows: board(players.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm), (p) => `${p.stats.motm}×`),
+      rows: board(members.filter((p) => p.stats.motm > 0).sort((a, b) => b.stats.motm - a.stats.motm), (p) => `${p.stats.motm}×`),
     },
   ];
 
   const nextCount = next ? lineup(next.id).length : 0;
-  const pollGroups = poll ? groupReplies(players.filter((p) => p.active), poll.replies) : null;
-  const cardLink = "flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg";
+  const nextIn = next ? rsvps.filter((r) => r.matchId === next.id && r.status === "in").length : 0;
+  const asking = !!next && nextCount === 0; // planned, waiting for replies
+  const nextReplies = next ? rsvps.filter((r) => r.matchId === next.id) : [];
+  const nextMaybe = nextReplies.filter((r) => r.status === "maybe").length;
+  const replied = new Set(nextReplies.map((r) => r.playerId));
+  const waiting = players.filter((p) => p.active && !p.isGuest && !replied.has(p.id)).map((p) => p.name);
+  const remind = nextReplies.length > 0 && waiting.length > 0;
   const lastLineup = last ? lineup(last.id) : [];
   const scorers = lastLineup.filter((e) => (e.goals ?? 0) > 0).sort((a, b) => (b.goals ?? 0) - (a.goals ?? 0));
   const winner = last ? (last.scoreA > last.scoreB ? "A" : last.scoreB > last.scoreA ? "B" : null) : null;
 
   return (
     <div className="mx-auto max-w-xl space-y-3.5 md:max-w-none md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-      {poll && pollGroups ? (
-        // A "who's coming?" poll is collecting replies: that's the next step.
-        <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
-          <div className="flex items-baseline justify-between text-xs font-semibold">
-            <span className="tracking-widest uppercase">Who&apos;s coming</span>
+      <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
+        <div className="flex items-baseline justify-between text-xs font-semibold">
+          <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
+          {next && (
             <span>
-              {pollGroups.in.length} in · {pollGroups.maybe.length} maybe · {pollGroups.none.length} no reply
+              {asking ? `${nextIn} in${nextMaybe ? ` · ${nextMaybe} maybe` : ""} · ${waiting.length} no reply` : `${nextCount} in · ${Math.floor(nextCount / 2)} v ${Math.ceil(nextCount / 2)}`}
             </span>
-          </div>
-          <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">{formatDate(poll.date, { short: true })}</div>
+          )}
+        </div>
+        <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
+          {next ? formatDate(next.date, { short: true }) : "Pick teams"}
+        </div>
+        {asking && next.shareToken ? (
           <div className="grid grid-cols-2 gap-2">
             <ShareButton
-              what={pollGroups.none.length && poll.replies.length ? "reminder" : "invite"}
-              path={`/a/${poll.token}`}
-              template={
-                pollGroups.none.length && poll.replies.length ? reminderText(poll.date, "{url}", pollGroups) : inviteText(poll.date, "{url}")
-              }
+              what={remind ? "reminder" : "invite"}
+              path={`/m/${next.shareToken}`}
+              template={remind ? reminderText(next.date, "{url}", nextIn, waiting) : inviteText(next.date, "{url}")}
               className="min-h-12 rounded-[14px] border border-ground/25 px-3 text-[15px] font-semibold"
             />
-            <Link href="/attendance" className={cardLink}>
+            <Link
+              href={`/matches/${next.id}`}
+              className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
+            >
               Replies
               <Icon name="arrowRight" size={20} />
             </Link>
           </div>
-        </section>
-      ) : (
-        <section className="flex flex-col gap-3 rounded-[20px] bg-accent p-[18px] text-ground">
-          <div className="flex items-baseline justify-between text-xs font-semibold">
-            <span className="tracking-widest uppercase">{next ? "Next match" : "No match planned"}</span>
-            {next && (
-              <span>
-                {nextCount} in · {Math.floor(nextCount / 2)} v {Math.ceil(nextCount / 2)}
-              </span>
-            )}
-          </div>
-          <div className="font-display text-[44px] leading-[0.95] font-extrabold uppercase">
-            {next ? formatDate(next.date, { short: true }) : "Plan next game"}
-          </div>
-          {next ? (
-            <Link href={`/matches/${next.id}`} className={cardLink}>
-              Open match
-              <Icon name="arrowRight" size={20} />
-            </Link>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/attendance" className={`${cardLink} px-3`}>
-                Who&apos;s coming?
-              </Link>
-              <Link href="/matches/new" className="flex min-h-12 items-center justify-center rounded-[14px] border border-ground/25 px-3 text-[15px] font-semibold">
-                Pick teams
-              </Link>
-            </div>
-          )}
-        </section>
-      )}
+        ) : (
+          <Link
+            href={next ? (asking ? `/matches/new?match=${next.id}` : `/matches/${next.id}`) : "/matches"}
+            className="flex min-h-12 items-center justify-between rounded-[14px] bg-ground px-[18px] text-[15px] font-semibold text-fg"
+          >
+            {next ? (asking ? `Pick teams from ${nextIn} players` : "Open match") : "Plan a match"}
+            <Icon name="arrowRight" size={20} />
+          </Link>
+        )}
+      </section>
 
       {last ? (
         <section className="card flex flex-col gap-2.5">
@@ -161,11 +149,16 @@ export default async function Dashboard() {
           )}
         </section>
       ) : (
-        <section className="card flex items-center text-sm text-muted">No results yet. Enter a score after your first match.</section>
+        <section className="card flex flex-col justify-center gap-2 text-sm text-muted">
+          <span>No results yet.</span>
+          <Link href="/matches/past" className="font-semibold text-accent">
+            Already played this season? Add past matches →
+          </Link>
+        </section>
       )}
 
       <div className="md:col-span-2">
-        <LeaderTabs boards={boards} />
+        <LeaderTabs boards={boards} caption={season ? `Season ${season.name}` : undefined} />
       </div>
     </div>
   );

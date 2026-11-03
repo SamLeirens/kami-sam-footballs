@@ -42,7 +42,7 @@ export function ShareButton({
 
   return (
     <button type="button" className={className} onClick={share}>
-      {copied ? "Copied ✓ paste in chat" : `${canShare ? "Share" : "Copy"} ${what}`}
+      {copied ? "Copied ✓" : `${canShare ? "Share" : "Copy"} ${what}`}
     </button>
   );
 }
