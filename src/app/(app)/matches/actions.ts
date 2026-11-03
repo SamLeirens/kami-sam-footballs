@@ -6,6 +6,8 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, matches, matchPlayers, motmVotes, rsvps } from "@/db";
 import { requireAdmin } from "@/lib/auth";
+import { todayISO } from "@/lib/data";
+import { validatePastMatch, type PastMatchInput } from "@/lib/pastMatch";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -164,4 +166,23 @@ export async function removeVote(matchId: number, voterId: number) {
   await requireAdmin();
   await db.delete(motmVotes).where(and(eq(motmVotes.matchId, matchId), eq(motmVotes.voterId, voterId)));
   refresh();
+}
+
+/** Enter a match that was already played: line-up, score, optional goals/assists/MOTM, in one go. */
+export async function addPastMatch(input: PastMatchInput): Promise<{ error: string } | { id: number }> {
+  await requireAdmin();
+  const error = validatePastMatch(input, todayISO());
+  if (error) return { error };
+  const id = await db.transaction(async (tx) => {
+    const [m] = await tx
+      .insert(matches)
+      .values({ date: input.date, scoreA: input.scoreA, scoreB: input.scoreB, motmPlayerId: input.motmPlayerId, votingOpen: false })
+      .returning({ id: matches.id });
+    await tx.insert(matchPlayers).values(
+      input.players.map((p) => ({ matchId: m.id, playerId: p.playerId, team: p.team, goals: p.goals, assists: p.assists })),
+    );
+    return m.id;
+  });
+  refresh();
+  return { id };
 }

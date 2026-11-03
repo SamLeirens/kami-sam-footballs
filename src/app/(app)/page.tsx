@@ -124,7 +124,12 @@ export default async function Dashboard() {
           )}
         </section>
       ) : (
-        <section className="card flex items-center text-sm text-muted">No results yet. Enter a score after your first match.</section>
+        <section className="card flex flex-col justify-center gap-2 text-sm text-muted">
+          <span>No results yet.</span>
+          <Link href="/matches/past" className="font-semibold text-accent">
+            Already played this season? Add past matches →
+          </Link>
+        </section>
       )}
 
       <div className="md:col-span-2">

@@ -16,6 +16,7 @@ Web app for running our weekly football: rate players, generate fair teams, reco
   - Swap players by hand and the balance bar updates live.
   - **Copy teams** copies a Dutch message ("Ploegen voor …", 🔵 Blauw / 🟠 Oranje) to paste in the group chat.
 - **Results**: score, optional goals and assists per player, man of the match, late arrivals, players switching sides.
+- **Past matches** (Matches → Add past match): enter games that were already played in one go: date, who played for Blue and Orange, the score, and optionally goals, assists and MOTM. After each save the date moves on a week, ready for the next game. Enter them in any order; stats and Elo replay by date.
 - **Match page to share** (`/m/<link>`, no login needed). Before teams are picked it asks who's in; after the match it shows the result: score, scorers, line-ups and club leaders, plus a **man of the match vote**.
   - Each player picks their own name and votes; a name can only vote once, and you can't vote for yourself.
   - Everyone can see who has voted, so a vote cast in someone else's name gets noticed. The admin can remove votes, close voting, or pick the MOTM themselves (that overrides the vote).

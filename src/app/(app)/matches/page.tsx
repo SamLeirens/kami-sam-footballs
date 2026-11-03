@@ -18,7 +18,10 @@ export default async function MatchesPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="h1">Matches</h1>
-        <Link href="/matches/new" className="btn">Pick teams now</Link>
+        <div className="flex gap-2">
+          <Link href="/matches/past" className="btn-secondary">Add past match</Link>
+          <Link href="/matches/new" className="btn">Pick teams</Link>
+        </div>
       </div>
 
       <form action={planMatch} className="card flex flex-wrap items-end gap-2">
