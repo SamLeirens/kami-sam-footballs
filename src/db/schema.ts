@@ -27,7 +27,6 @@ export const players = pgTable("players", {
   defence: integer("defence").notNull().default(5),
   passing: integer("passing").notNull().default(5),
   fitness: integer("fitness").notNull().default(5),
-  goalkeeping: integer("goalkeeping").notNull().default(3),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -87,7 +87,7 @@ export default async function SettingsPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Every possible split is checked (for up to ~24 players), and the 3 best are shown.</li>
           <li>Main goal: total strength of both teams as close as possible. With odd numbers (5 v 6) the smaller team gets stronger players to make up for it.</li>
-          <li>Keepers are split one per team, and defenders/attackers are spread out.</li>
+          <li>Defenders and attackers are spread out over both teams.</li>
           <li>Repeating last match&apos;s exact teams is avoided when there&apos;s an equally fair alternative.</li>
           <li>You can always swap players by hand afterwards.</li>
         </ul>

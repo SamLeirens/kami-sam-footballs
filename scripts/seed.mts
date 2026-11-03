@@ -9,8 +9,8 @@ const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 const db = drizzle(sql);
 
 const names: [string, Position][] = [
-  ["Sam", "MID"], ["Kami", "ATT"], ["Tom", "DEF"], ["Jonas", "GK"], ["Pieter", "MID"],
-  ["Lucas", "ATT"], ["Ben", "DEF"], ["Arne", "MID"], ["Wout", "GK"], ["Jef", "DEF"],
+  ["Sam", "MID"], ["Kami", "ATT"], ["Tom", "DEF"], ["Jonas", "DEF"], ["Pieter", "MID"],
+  ["Lucas", "ATT"], ["Ben", "DEF"], ["Arne", "MID"], ["Wout", "MID"], ["Jef", "DEF"],
   ["Milan", "ATT"], ["Ruben", "MID"],
 ];
 const r = () => 3 + Math.floor(Math.random() * 6);
@@ -19,7 +19,6 @@ const ps = await db
   .insert(players)
   .values(names.map(([name, position]) => ({
     name, position, attack: r(), defence: r(), passing: r(), fitness: r(),
-    goalkeeping: position === "GK" ? 7 + Math.floor(Math.random() * 3) : 2,
   })))
   .returning();
 await db.insert(ratingHistory).values(ps.map((p) => ({ playerId: p.id, overall: overall(p) })));

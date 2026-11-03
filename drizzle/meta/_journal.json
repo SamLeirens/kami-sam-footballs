@@ -29,6 +29,13 @@
       "when": 1793687431235,
       "tag": "0003_guests_rsvps_seasons",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793694693888,
+      "tag": "0004_no_goalkeepers",
+      "breakpoints": true
     }
   ]
 }

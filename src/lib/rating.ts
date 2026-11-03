@@ -1,11 +1,8 @@
-import type { Position } from "@/lib/positions";
-
 export type Attributes = {
   attack: number;
   defence: number;
   passing: number;
   fitness: number;
-  goalkeeping: number;
 };
 
 export const ATTRIBUTES: { key: keyof Attributes; label: string }[] = [
@@ -13,14 +10,11 @@ export const ATTRIBUTES: { key: keyof Attributes; label: string }[] = [
   { key: "defence", label: "Defence" },
   { key: "passing", label: "Passing" },
   { key: "fitness", label: "Fitness" },
-  { key: "goalkeeping", label: "Goalkeeping" },
 ];
 
-/** Overall rating 1-10 from the attributes you set. Keepers lean on goalkeeping. */
-export function overall(p: Attributes & { position: Position }): number {
-  const outfield = (p.attack + p.defence + p.passing + p.fitness) / 4;
-  const value = p.position === "GK" ? 0.6 * p.goalkeeping + 0.4 * outfield : outfield;
-  return round1(value);
+/** Overall rating 1-10: the average of the attributes you set. */
+export function overall(p: Attributes): number {
+  return round1((p.attack + p.defence + p.passing + p.fitness) / 4);
 }
 
 export const ELO_START = 1000;

@@ -43,11 +43,8 @@ describe("computeStats", () => {
 });
 
 describe("rating", () => {
-  it("overall averages outfield attributes", () => {
-    expect(overall({ position: "MID", attack: 8, defence: 6, passing: 7, fitness: 7, goalkeeping: 1 })).toBe(7);
-  });
-  it("keepers weight goalkeeping", () => {
-    expect(overall({ position: "GK", attack: 4, defence: 4, passing: 4, fitness: 4, goalkeeping: 9 })).toBe(7);
+  it("overall averages attributes", () => {
+    expect(overall({ attack: 8, defence: 6, passing: 7, fitness: 7 })).toBe(7);
   });
   it("strength nudges by Elo with cap", () => {
     expect(strength(6, 1100, 1)).toBe(7);

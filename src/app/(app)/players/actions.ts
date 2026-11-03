@@ -26,7 +26,6 @@ function parse(formData: FormData) {
       defence: num("defence"),
       passing: num("passing"),
       fitness: num("fitness"),
-      goalkeeping: num("goalkeeping"),
       isGuest: formData.get("isGuest") === "on",
     },
   } as const;
@@ -80,7 +79,6 @@ export async function addGuest(input: GuestInput): Promise<{ error: string } | {
       defence: level,
       passing: level,
       fitness: level,
-      goalkeeping: input.position === "GK" ? level : 2,
     })
     .returning();
   await db.insert(ratingHistory).values({ playerId: p.id, overall: overall(p) });

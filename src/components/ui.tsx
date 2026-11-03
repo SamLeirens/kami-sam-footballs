@@ -2,7 +2,6 @@ import type { Position } from "@/lib/positions";
 import type { Result } from "@/lib/stats";
 
 const POS_STYLE: Record<Position, string> = {
-  GK: "bg-warn-dim text-warn",
   DEF: "bg-surface-2 text-soft",
   MID: "bg-surface-2 text-muted",
   ATT: "bg-danger-dim text-danger",
