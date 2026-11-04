@@ -3,6 +3,7 @@ import { asc } from "drizzle-orm";
 import { db, seasons } from "@/db";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { formatDate } from "@/components/ui";
+import { requireAdmin } from "@/lib/auth";
 import { getSettings, todayISO } from "@/lib/data";
 import { seasonRanges } from "@/lib/seasons";
 import { SeasonForm } from "./SeasonForm";
@@ -17,6 +18,7 @@ const WEIGHTS = [
 ];
 
 export default async function SettingsPage() {
+  await requireAdmin();
   const [cfg, seasonRows] = await Promise.all([getSettings(), db.select().from(seasons).orderBy(asc(seasons.startDate))]);
   const ranges = seasonRanges(seasonRows).reverse();
   // Suggest the football season that contains today, e.g. "26/27" starting 1 Sept.

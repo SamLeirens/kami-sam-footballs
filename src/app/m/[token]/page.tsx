@@ -4,17 +4,18 @@ import { Star } from "@/components/icons";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { formatDate } from "@/components/ui";
-import { loadClub } from "@/lib/data";
+import { loadPublicClub } from "@/lib/data";
 import { tally } from "@/lib/motm";
 import { isPlayed } from "@/lib/stats";
 import { ME_COOKIE, rsvpCookie, voteCookie } from "./vote-cookie";
 import { RsvpForm } from "./RsvpForm";
 import { VoteForm } from "./VoteForm";
 
-type Club = Awaited<ReturnType<typeof loadClub>>;
+// Public page: never use loadClub here — it holds ratings and needs admin login.
+type Club = Awaited<ReturnType<typeof loadPublicClub>>;
 
 async function load(token: string) {
-  const club = await loadClub();
+  const club = await loadPublicClub();
   const match = club.matches.find((m) => m.shareToken === token);
   if (!match) return null;
   return { club, match };

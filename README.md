@@ -22,7 +22,7 @@ Web app for running our weekly football: rate players, generate fair teams, reco
 - **Match page to share** (`/m/<link>`, no login needed). Before teams are picked it asks who's in; after the match it shows the result: score, scorers, line-ups and club leaders, plus a **man of the match vote**.
   - Each player picks their own name and votes; a name can only vote once, and you can't vote for yourself.
   - Everyone can see who has voted, so a vote cast in someone else's name gets noticed. The admin can remove votes, close voting, or pick the MOTM themselves (that overrides the vote).
-  - Player ratings are never shown on this page.
+  - Player ratings, strength and Elo are never shown on this page. It loads data through `loadPublicClub()` (`src/lib/publicView.ts` allowlists what players expose); `loadClub()` holds ratings and requires the admin login.
 - **Stats**: played/W/D/L, win %, goals, assists, last-5 form, Elo, sortable leaderboard.
 - **Seasons**: add seasons in Settings (each runs until the next one starts). Stats, leaderboards and player pages show the current season by default, with an All-time option. Team strength always uses every match.
 - **Teammate stats**: on each player's page, their win % with and against every other player, plus their best partner and toughest opponent. The stats page lists the best and worst duos.

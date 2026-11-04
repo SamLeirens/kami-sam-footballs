@@ -1,15 +1,13 @@
-import { asc, eq } from "drizzle-orm";
 import { TEAMS } from "@/lib/teams";
 import { Star } from "@/components/icons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db, ratingHistory } from "@/db";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { PlayerForm } from "@/components/PlayerForm";
 import { Form, formatDate, PosBadge, ResultChip, Stat } from "@/components/ui";
 import { SeasonPicker } from "@/components/SeasonPicker";
 import { inRange } from "@/lib/seasons";
-import { loadClub, todayISO } from "@/lib/data";
+import { loadClub, loadRatingHistory, todayISO } from "@/lib/data";
 import { RatingChart, type RatingPoint } from "@/components/RatingChart";
 import { isPlayed, resultFor, winPct, type Record3 } from "@/lib/stats";
 import { deletePlayer, updatePlayer } from "../actions";
@@ -22,11 +20,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const p = club.players.find((x) => x.id === id);
   if (!p) notFound();
 
-  const history = await db
-    .select()
-    .from(ratingHistory)
-    .where(eq(ratingHistory.playerId, id))
-    .orderBy(asc(ratingHistory.createdAt));
+  const history = await loadRatingHistory(id);
   // one point per day: the last rating set that day
   const byDay = new Map<string, number>();
   for (const h of history) byDay.set(h.createdAt.toISOString().slice(0, 10), h.overall);
