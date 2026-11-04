@@ -1,13 +1,40 @@
 import Link from "next/link";
 import { PlayerForm } from "@/components/PlayerForm";
 import { Form, PosBadge } from "@/components/ui";
-import { loadClub } from "@/lib/data";
+import { loadClub, type PlayerRow } from "@/lib/data";
 import { createPlayer } from "./actions";
 
-export default async function PlayersPage() {
+const SORTS = {
+  rating: (a: PlayerRow, b: PlayerRow) => b.overall - a.overall || b.strength - a.strength,
+  winPct: (a: PlayerRow, b: PlayerRow) =>
+    // players with no games sink to the bottom
+    Number(b.stats.played > 0) - Number(a.stats.played > 0) ||
+    b.stats.winPct - a.stats.winPct ||
+    b.stats.played - a.stats.played,
+} as const;
+type SortKey = keyof typeof SORTS;
+
+export default async function PlayersPage({ searchParams }: PageProps<"/players">) {
+  const sp = await searchParams;
+  const sort = typeof sp.sort === "string" && sp.sort in SORTS ? (sp.sort as SortKey) : undefined;
   const { players, members } = await loadClub({ season: "all" });
-  const active = members.filter((p) => p.active);
-  const inactive = members.filter((p) => !p.active);
+  const ordered = sort ? [...members].sort(SORTS[sort]) : members;
+  const active = ordered.filter((p) => p.active);
+  const inactive = ordered.filter((p) => !p.active);
+
+  // clicking the active sort header again clears it
+  const sortHeader = (key: SortKey, label: string, title?: string) => (
+    <th className="px-2 py-2 text-right" title={title}>
+      <Link
+        href={sort === key ? "/players" : `/players?sort=${key}`}
+        scroll={false}
+        className={sort === key ? "text-accent underline" : "hover:text-fg"}
+      >
+        {label}
+        {sort === key && " ↓"}
+      </Link>
+    </th>
+  );
   const guests = players.filter((p) => p.isGuest);
 
   return (
@@ -34,10 +61,10 @@ export default async function PlayersPage() {
               <tr>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-2 py-2">Pos</th>
-                <th className="px-2 py-2 text-right" title="Your rating">Rating</th>
+                {sortHeader("rating", "Rating", "Your rating")}
                 <th className="px-2 py-2 text-right" title="Rating adjusted by results — used for teams">Strength</th>
                 <th className="px-2 py-2 text-right">P</th>
-                <th className="px-2 py-2 text-right">Win %</th>
+                {sortHeader("winPct", "Win %")}
                 <th className="px-4 py-2">Form</th>
               </tr>
             </thead>
