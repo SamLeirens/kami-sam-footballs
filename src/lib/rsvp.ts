@@ -33,3 +33,26 @@ export function nextGameDate(lastMatchDate: string | null, today: string) {
   const diff = (toDate(lastMatchDate).getUTCDay() - t.getUTCDay() + 7) % 7 || 7;
   return toStr(new Date(t.getTime() + diff * DAY));
 }
+
+const STATUS_LABEL: Record<RsvpStatus, string> = { in: "✅ in", maybe: "🤔 maybe", out: "❌ out" };
+
+/** Phone notification for the admin when a player answers "who's in?". */
+export function rsvpNotice(
+  name: string,
+  status: RsvpStatus,
+  previous: RsvpStatus | null,
+  date: string,
+  counts: Record<RsvpStatus, number> & { waiting: number },
+) {
+  const day = new Date(date + "T12:00:00Z").toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const change = previous ? ` (was ${previous})` : "";
+  return {
+    title: `${name} is ${STATUS_LABEL[status]}${change}`,
+    message: `${day}: ${counts.in} in · ${counts.maybe} maybe · ${counts.out} out · ${counts.waiting} no reply`,
+  };
+}

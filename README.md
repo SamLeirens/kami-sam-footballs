@@ -10,6 +10,10 @@ Web app for running our weekly football: rate players, generate fair teams, reco
 - **Who's in?**: plan a match (Matches → Plan match; the date defaults to the next game on your usual weekday) and share its link. Players pick their name and tap *I'm in* / *Maybe* / *Can't*. Their phone remembers who they are, so next week it's one tap. You can also set replies yourself. *Pick teams* then starts with everyone who's in ticked (maybes are listed), and the same link switches to show the teams.
   - **Share invite** (on the match page and on Home) opens the phone's share sheet with a Dutch message and the link: pick Messenger, then the team chat. On a computer it copies the message instead. Once replies come in it becomes **Share reminder**, which lists who hasn't answered yet.
   - Facebook doesn't let apps post in group chats, so sharing is one tap by hand.
+  - **Reply notifications** (optional): get a push on your phone each time someone answers, e.g. *Jan is ✅ in* / *Thu 19 Nov: 9 in · 2 maybe · 1 out · 3 no reply*. Tapping it opens the match. Only sent when an answer changes, not for replies you set yourself. Setup:
+    1. Install the free **ntfy** app (iOS / Android) and subscribe to a topic with a long, unguessable name (e.g. `kami-fc-x7k2p9q4`). Anyone who knows the name can read it.
+    2. In Vercel, add the env var `NTFY_TOPIC` with that name and redeploy. Leave it unset to turn notifications off.
+    3. (Self-hosted ntfy: also set `NTFY_SERVER`, default `https://ntfy.sh`.)
 - **Fair teams**: tick who's playing and get the 3 fairest splits into two teams (5v5, 5v6, …).
   - Tries every possible split (up to ~24 players), so the result is the best possible, not a guess.
   - Balances total strength; with odd numbers the smaller team gets stronger players.
@@ -43,6 +47,7 @@ Web app for running our weekly football: rate players, generate fair teams, reco
 3. Add these environment variables in Vercel:
    - `DATABASE_URL`: the Neon string
    - `ADMIN_PASSWORD`: the password you'll log in with
+   - `NTFY_TOPIC` (optional): phone notifications for replies, see *Who's in?* above
 4. Deploy. The build runs the database migrations automatically.
 
 Every push to `main` redeploys. Changing `ADMIN_PASSWORD` logs everyone out.
@@ -68,6 +73,7 @@ npm run dev
 - `src/lib/balance.ts`: team balancing algorithm
 - `src/lib/stats.ts`: win/draw/loss, form, Elo
 - `src/lib/rsvp.ts`: who's-in answers, Dutch chat messages, suggested game day
+- `src/lib/ntfy.ts`: phone notifications via ntfy
 - `src/lib/rating.ts`: overall rating and strength
 - `src/db/schema.ts`: database tables
 - `src/app/(app)/…`: pages; `actions.ts` files hold server actions
