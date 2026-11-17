@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inviteText, isRsvpStatus, nextGameDate, reminderText } from "../rsvp";
+import { inviteText, isRsvpStatus, nextGameDate, reminderText, rsvpNotice } from "../rsvp";
 
 describe("isRsvpStatus", () => {
   it("accepts in / maybe / out only", () => {
@@ -42,5 +42,19 @@ describe("nextGameDate", () => {
 
   it("defaults to a week from today without matches", () => {
     expect(nextGameDate(null, "2026-11-03")).toBe("2026-11-10");
+  });
+});
+
+describe("rsvpNotice", () => {
+  const counts = { in: 9, maybe: 2, out: 1, waiting: 3 };
+
+  it("names the player and gives the running count", () => {
+    const n = rsvpNotice("Jan", "in", null, "2026-11-19", counts);
+    expect(n.title).toBe("Jan is ✅ in");
+    expect(n.message).toBe("Thu 19 Nov: 9 in · 2 maybe · 1 out · 3 no reply");
+  });
+
+  it("mentions a changed answer", () => {
+    expect(rsvpNotice("Jan", "out", "in", "2026-11-19", counts).title).toBe("Jan is ❌ out (was in)");
   });
 });
